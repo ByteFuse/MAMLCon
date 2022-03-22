@@ -34,8 +34,8 @@ class GradientLearningBase(pl.LightningModule):
         self.training = False
         query_loss, query_accuracy = self.meta_learn(batch)
 
-        self.log(f"validation_accuracy",query_loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
-        self.log(f"validation_loss", query_accuracy, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+        self.log(f"validation_accuracy",query_accuracy, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+        self.log(f"validation_loss", query_loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=self.optim_config['outer_learning_rate'])

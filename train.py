@@ -188,7 +188,7 @@ def main(cfg: DictConfig):
         gpus=None if not torch.cuda.is_available() else -1,
         max_epochs=cfg.max_epochs,           
         deterministic=True, 
-        precision=cfg.precision,
+        precision=cfg.precision if cfg.method=='maml' else 32,
         profiler="simple",
         accumulate_grad_batches=cfg.batch_size,
         gradient_clip_val=cfg.optim.gradient_clip_val,
