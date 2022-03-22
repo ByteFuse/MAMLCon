@@ -134,7 +134,7 @@ class Reptile(GradientLearningBase):
         if self.training:
             new_weights = self.model.state_dict()
             current_lr = self.initial_lr * (1 - self.outer_steps / self.trainer.max_steps) # linear schedule
-            self.log(current_lr, on_step=True, on_epoch=True, prog_bar=False, logger=False)
+            self.log('learning_rate',current_lr, on_step=True, on_epoch=True, prog_bar=False, logger=False)
             self.model.load_state_dict({name : old_weights[name] + (new_weights[name] - old_weights[name]) * current_lr for name in old_weights})
             self.outer_steps += 1
         else:
