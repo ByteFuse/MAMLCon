@@ -1,0 +1,4 @@
+name: "rnn"
+hidden_dim: 512
+n_layers: 3
+learn_states: True

@@ -1,0 +1,9 @@
+name: "adam"
+inner_steps: 5
+val_inner_steps: 5
+gradient_clip_val: 0
+inner_learning_rate: 0.001
+outer_learning_rate: 0.0001
+scheduler: True
+scheduler_step: 30
+scheduler_decay: 0.1

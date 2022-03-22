@@ -1,0 +1,27 @@
+defaults:
+  - encoder: 1d_cnn
+  - optim: adam
+  - conversion_method: mfcc
+
+dataset: 'flickr8k'
+stemming: True
+lematise: False
+batch_size: 4
+epoch_n_tasks: 200
+max_epochs: 200
+precision: 16
+method: "maml"
+n_way: 5
+k_shot: 5
+augment: 'none'
+embedding_dim: 128
+return_features: False
+
+secrets:
+  wandb_key: ''
+
+hydra:
+  run:
+    dir: ./training_results/${dataset}/${method}/${encoder.name}/${conversion_method.name}/
+  sweep:
+    dir: ./training_results/${dataset}/${method}/${encoder.name}/${conversion_method.name}/
