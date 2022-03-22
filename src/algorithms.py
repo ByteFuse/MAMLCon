@@ -76,6 +76,7 @@ class VanillaMAML(GradientLearningBase):
     def meta_learn(self, batch):
         # to accumulate tasks change accumaluate gradients of trainer
         _inputs, labels = batch
+        
         labels = torch.tensor(self.le.fit_transform(labels))
         (support_input, support_labels), (query_input, query_labels) = l2l.data.partition_task(_inputs.squeeze(0), labels, shots=self.k_shot)
 
@@ -84,7 +85,11 @@ class VanillaMAML(GradientLearningBase):
             
         # fast train
         for step in range(self.train_update_steps):
-            output = learner(self.augmentation(support_input)) if self.augmentation else learner(support_input)
+
+            if self.training:
+                output = learner(self.augmentation(support_input)) if self.augmentation else learner(support_input)
+            else:
+                output = learner(support_input)
             output['labels'] = support_labels
             support_error = self.loss_func(output)
             learner.adapt(support_error) 
@@ -120,7 +125,10 @@ class Reptile(GradientLearningBase):
         # fast train
         for step in range(self.train_update_steps):
             opt.zero_grad()
-            output = self.model(self.augmentation(support_input)) if self.augmentation else self.model(support_input)
+            if self.training:
+                output = self.model(self.augmentation(support_input)) if self.augmentation else self.model(support_input)
+            else:
+                output = self.model(support_input)
             output['labels'] = support_labels
             support_error = self.loss_func(output)
             support_error.backward()
