@@ -1,0 +1,14 @@
+name: mfcc
+sample_rate: 16000
+n_mfcc: 13
+n_mels: 128
+width: 9
+hop_length: 160
+win_length: 400
+n_fft: 400
+use_delta: True
+use_delta_delta: True
+normalize: True
+input_channels: 39
+max_samples: 150 # keep this constant for now
+pad_both_sides: True

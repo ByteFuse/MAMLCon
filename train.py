@@ -29,8 +29,8 @@ class WordData(pl.LightningDataModule):
     def setup(self, stage=None):
         if self.cfg['dataset'] == 'flickr8k':
             train_dataset = Flickr8kWordClassification(
-                meta_path='./data/flickr/flickr8k_word_splits_train.csv',
-                audio_root='./data/flickr/wavs/', 
+                meta_path='../../../../../data/flickr/flickr8k_word_splits_train.csv',
+                audio_root='../../../../../data/flickr/wavs/', 
                 conversion_config=self.cfg.conversion_method,
                 stemming=self.cfg.stemming, 
                 lemmetise=self.cfg.lematise     
@@ -62,7 +62,6 @@ class WordData(pl.LightningDataModule):
 
         self.train_dataset = l2l.data.TaskDataset(train_dataset, train_transforms, num_tasks=self.cfg['epoch_n_tasks'])
         self.valiadation_dataset = l2l.data.TaskDataset(val_dataset, val_transforms, num_tasks=self.cfg['epoch_n_tasks'])
-
 
     # we define a separate DataLoader for each of train/val/test
     def train_dataloader(self):
@@ -108,11 +107,8 @@ class MetaModal(nn.Module):
 
         return {'logits':logits}
 
-
 @hydra.main(config_path="config", config_name="config")
 def main(cfg: DictConfig):
-    # set up wandb and trainers
-
     pl.utilities.seed.seed_everything(42)
 
     if cfg.augment == 'hard':
@@ -141,14 +137,12 @@ def main(cfg: DictConfig):
             learn_states=cfg.encoder.learn_states
           )
     
-
     loss_fn = ClassificationLoss()
     model = MetaModal(encoder, cfg.embedding_dim, cfg.n_way, return_features=cfg.return_features)
     data = WordData(cfg)
     data.setup()
 
     if cfg.method=='maml':
-
         algorithm = VanillaMAML(
             model=model, 
             train_update_steps=cfg.optim.inner_steps,
@@ -157,6 +151,7 @@ def main(cfg: DictConfig):
             optim_config=cfg.optim,
             k_shot=cfg.k_shot,
             first_order=cfg.first_order,
+            augmentation=audio_augmentation
         )
     elif cfg.method=='reptile':
         algorithm = Reptile(
@@ -166,6 +161,7 @@ def main(cfg: DictConfig):
             loss_func=loss_fn,
             optim_config=cfg.optim,
             k_shot=cfg.k_shot,
+            augmentation=audio_augmentation
         )
 
     wandb.login(key=cfg.secrets.wandb_key)
@@ -180,8 +176,7 @@ def main(cfg: DictConfig):
         save_last=True
     )
     lr_monitor = LearningRateMonitor(logging_interval='step')
-    earlystop_callback = EarlyStopping(monitor='validation_loss', patience=15, mode='min')
-
+    earlystop_callback = EarlyStopping(monitor='validation_loss', patience=cfg.optim.scheduler_step, mode='min')
 
     trainer = pl.Trainer(
         logger=wandb_logger,    

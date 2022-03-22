@@ -1,0 +1,9 @@
+name: melspec
+sample_rate: 16000
+n_mels: 40
+hop_length: 160
+win_length: 320
+n_fft: 512
+input_channels: 40
+max_samples: 150 # keep this constant for now
+pad_both_sides: True
