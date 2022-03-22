@@ -22,11 +22,6 @@ secrets:
 
 hydra:
   run:
-    dir: ./training_results/${dataset}/${method}/${encoder.name}/${conversion_method}.name/
+    dir: ./training_results/${dataset}/${method}/${encoder.name}/${conversion_method.name}/
   sweep:
-    dir: ./training_results/${dataset}/${method}/${encoder.name}/${conversion_method}.name/
-  job:
-    config:
-      override_dirname:
-        exclude_keys:
-          - data
+    dir: ./training_results/${dataset}/${method}/${encoder.name}/${conversion_method.name}/

@@ -22,7 +22,7 @@ class GradientLearningBase(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         self.train = True
-        query_loss, query_accuracy = self.meta_learn(batch, self.train_update_steps)
+        query_loss, query_accuracy = self.meta_learn(batch)
 
         self.log(f"train_accuracy",query_accuracy, on_step=True, on_epoch=True, prog_bar=True, logger=True)
         self.log(f"train_loss", query_loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
@@ -30,8 +30,9 @@ class GradientLearningBase(pl.LightningModule):
         return query_loss
 
     def validation_step(self, batch, batch_idx):
+        torch.set_grad_enabled(True)
         self.train = False
-        query_loss, query_accuracy = self.meta_learn(batch, self.test_update_steps)
+        query_loss, query_accuracy = self.meta_learn(batch)
 
         self.log(f"validation_accuracy",query_loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
         self.log(f"validation_loss", query_accuracy, on_step=True, on_epoch=True, prog_bar=True, logger=True)
@@ -61,22 +62,23 @@ class GradientLearningBase(pl.LightningModule):
 
         return accuracy
 
-
 class VanillaMAML(GradientLearningBase):
     
     """Based on examples in learn2learn"""
 
     def __init__(self, model, train_update_steps, test_update_steps, loss_func, optim_config, k_shot, first_order=True, augmentation=None):
-        self.model = l2l.algorithms.MAML(model, lr=self.adaptation_lr, first_order=first_order, allow_nograd=True)
         super().__init__(train_update_steps, test_update_steps, loss_func, optim_config, k_shot)
+        self.model = l2l.algorithms.MAML(model, lr=optim_config['inner_learning_rate'], first_order=first_order, allow_nograd=True)
         self.augmentation = augmentation
+        self.configure_optimizers()
+
 
     def meta_learn(self, batch):
         # to accumulate tasks change accumaluate gradients of trainer
         _inputs, labels = batch
-        labels = self.le.fit_transform(labels)
-        (support_input, support_labels), (query_input, query_labels) = l2l.data.partition_task(_inputs, labels, shots=self.k_shot)
-        
+        labels = torch.tensor(self.le.fit_transform(labels))
+        (support_input, support_labels), (query_input, query_labels) = l2l.data.partition_task(_inputs.squeeze(0), labels, shots=self.k_shot)
+
         learner = self.model.clone()
         learner.train()
             
@@ -94,23 +96,23 @@ class VanillaMAML(GradientLearningBase):
 
         return query_error, query_accuracy
 
-
 class Reptile(GradientLearningBase):
     
     """Based on code from orginal blog https://openai.com/blog/reptile/"""
     def __init__(self, model, train_update_steps, test_update_steps, loss_func, optim_config, k_shot,  augmentation=None):
-        self.model = model
         super().__init__(train_update_steps, test_update_steps, loss_func, optim_config, k_shot)
+        self.model = model
         self.automatic_optimization = False
         self.outer_steps = 0
         self.initial_lr = optim_config['outer_learning_rate']
         self.augmentation = augmentation
+        self.configure_optimizers()
 
     def meta_learn(self, batch):
         # to accumulate tasks change accumaluate gradients of trainer
         _inputs, labels = batch
-        labels = self.le.fit_transform(labels)
-        (support_input, support_labels), (query_input, query_labels) = l2l.data.partition_task(_inputs, labels, shots=self.k_shot)
+        labels = torch.tensor(self.le.fit_transform(labels))
+        (support_input, support_labels), (query_input, query_labels) = l2l.data.partition_task(_inputs.squeeze(0), labels, shots=self.k_shot)
         
         old_weights = deepcopy(self.model.state_dict()) 
         opt = self.optimizers()

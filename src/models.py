@@ -80,7 +80,6 @@ class WordClassificationAudioCnn(nn.Module):
     def forward(self, audio):
         for conv in self.encoder:
             audio = conv(audio)
-          
         audio = self.flatten(audio)
         embedding = self.projection(audio)
         return embedding

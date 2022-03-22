@@ -18,6 +18,8 @@ from src.algorithms import VanillaMAML, Reptile
 from src.data.datasets import Flickr8kWordClassification
 from src.utils import flatten_dict
 
+import warnings
+warnings.filterwarnings("ignore")
 
 class WordData(pl.LightningDataModule):
  
@@ -29,16 +31,16 @@ class WordData(pl.LightningDataModule):
     def setup(self, stage=None):
         if self.cfg['dataset'] == 'flickr8k':
             train_dataset = Flickr8kWordClassification(
-                meta_path='../../../../../data/flickr/flickr8k_word_splits_train.csv',
-                audio_root='../../../../../data/flickr/wavs/', 
+                meta_path='../../../../../../data/flickr/flickr8k_word_splits_train.csv',
+                audio_root='../../../../../../data/flickr/wavs/', 
                 conversion_config=self.cfg.conversion_method,
                 stemming=self.cfg.stemming, 
                 lemmetise=self.cfg.lematise     
             )
 
             val_dataset = Flickr8kWordClassification(
-                meta_path='./data/flickr/flickr8k_word_splits_validation.csv',
-                audio_root='./data/flickr/wavs/', 
+                meta_path='../../../../../../data/flickr/flickr8k_word_splits_validation.csv',
+                audio_root='../../../../../../data/flickr/wavs/', 
                 conversion_config=self.cfg.conversion_method,
                 stemming=self.cfg.stemming, 
                 lemmetise=self.cfg.lematise                
@@ -51,12 +53,12 @@ class WordData(pl.LightningDataModule):
 
         train_transforms = [
             l2l.data.transforms.NWays(train_dataset, n=self.cfg['n_way']), 
-            l2l.data.transforms.KShots(train_dataset,k=self.cfg['k_shot'], replacement=False), 
+            l2l.data.transforms.KShots(train_dataset,k=self.cfg['k_shot']*2, replacement=False), 
             l2l.data.transforms.LoadData(train_dataset)
         ]
         val_transforms = [
             l2l.data.transforms.NWays(val_dataset, n=self.cfg['n_way']), 
-            l2l.data.transforms.KShots(val_dataset,k=self.cfg['k_shot'], replacement=False), 
+            l2l.data.transforms.KShots(val_dataset,k=self.cfg['k_shot']*2, replacement=False), 
             l2l.data.transforms.LoadData(val_dataset)
         ]
 
@@ -86,7 +88,7 @@ class WordData(pl.LightningDataModule):
         return val_loader
 
 
-class MetaModal(nn.Module):
+class MetaModel(nn.Module):
     def __init__(self, encoder, embedding_dim, n_classes, return_features=False):
         super().__init__()
 
@@ -138,7 +140,7 @@ def main(cfg: DictConfig):
           )
     
     loss_fn = ClassificationLoss()
-    model = MetaModal(encoder, cfg.embedding_dim, cfg.n_way, return_features=cfg.return_features)
+    model = MetaModel(encoder, cfg.embedding_dim, cfg.n_way, return_features=cfg.return_features)
     data = WordData(cfg)
     data.setup()
 
@@ -193,3 +195,8 @@ def main(cfg: DictConfig):
 
     trainer.fit(algorithm, data)
     wandb.finish()
+
+if __name__ == "__main__":
+    import torch.multiprocessing
+    torch.multiprocessing.set_sharing_strategy('file_system')
+    main()

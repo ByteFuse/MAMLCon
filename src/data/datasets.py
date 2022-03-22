@@ -66,15 +66,15 @@ class Flickr8kWordClassification(torch.utils.data.Dataset):
         max_samples=self.conversion_config['max_samples']
         pad_both_sides=self.conversion_config['pad_both_sides']
 
-
-        if audio.size(-1) > max_samples:
+        audio = torch.tensor(audio)
+        if audio.shape[-1] > max_samples:
             audio = audio[:,:max_samples]
         else:
             if pad_both_sides:
-                pad_lenght = int(max_samples-audio.size(-1))//2
-                audio = F.pad(audio, (pad_lenght, pad_lenght+1 if int(max_samples-audio.size(-1))%2!=0 else pad_lenght), 'constant', 0)
+                pad_lenght = int(max_samples-audio.shape[-1])//2
+                audio = F.pad(audio, (pad_lenght, pad_lenght+1 if int(max_samples-audio.shape[-1])%2!=0 else pad_lenght), 'constant', 0)
             else:
-                audio = F.pad(audio, (0, int(max_samples-audio.size(-1))), 'constant', 0)
+                audio = F.pad(audio, (0, int(max_samples-audio.shape[-1])), 'constant', 0)
 
         return audio
 
