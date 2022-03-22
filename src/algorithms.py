@@ -2,6 +2,7 @@ from copy import deepcopy
 
 import learn2learn as l2l
 import pytorch_lightning as pl
+from sklearn.preprocessing import LabelEncoder
 
 import torch
 import torch.nn.functional as F
@@ -9,15 +10,15 @@ import torch.nn.functional as F
 class GradientLearningBase(pl.LightningModule):
 
     """Inspired from the learn2lean PL vision example."""
-    def __init__(self, train_update_steps, test_update_steps, loss_func, optim_config, n_way, k_shot):
+    def __init__(self, train_update_steps, test_update_steps, loss_func, optim_config, k_shot):
         super().__init__()
 
         self.train_update_steps = train_update_steps
         self.test_update_steps = test_update_steps
         self.loss_func = loss_func
         self.optim_config = optim_config
-        self.n_way = n_way
         self.k_shot = k_shot
+        self.le = LabelEncoder()
 
     def training_step(self, batch, batch_idx):
         self.train = True
@@ -52,7 +53,6 @@ class GradientLearningBase(pl.LightningModule):
         raise NotImplementedError('User must impliment this method')
 
     def calculate_accuracy(output):
-
         logits, labels = output['logits'], output['labels']
         predicted_probs = F.softmax(logits, dim=1).detach().cpu()
         labels = labels.long().detach().cpu()
@@ -66,13 +66,15 @@ class VanillaMAML(GradientLearningBase):
     
     """Based on examples in learn2learn"""
 
-    def __init__(self, model, train_update_steps, test_update_steps, loss_func, optim_config, n_way, k_shot, first_order=True):
+    def __init__(self, model, train_update_steps, test_update_steps, loss_func, optim_config, k_shot, first_order=True, augmentation=None):
         self.model = l2l.algorithms.MAML(model, lr=self.adaptation_lr, first_order=first_order, allow_nograd=True)
-        super().__init__(train_update_steps, test_update_steps, loss_func, optim_config, n_way, k_shot)
+        super().__init__(train_update_steps, test_update_steps, loss_func, optim_config, k_shot)
+        self.augmentation = augmentation
 
     def meta_learn(self, batch):
         # to accumulate tasks change accumaluate gradients of trainer
         _inputs, labels = batch
+        labels = self.le.fit_transform(labels)
         (support_input, support_labels), (query_input, query_labels) = l2l.data.partition_task(_inputs, labels, shots=self.k_shot)
         
         learner = self.model.clone()
@@ -80,7 +82,7 @@ class VanillaMAML(GradientLearningBase):
             
         # fast train
         for step in range(self.train_update_steps):
-            output = learner(support_input)
+            output = learner(self.augmentation(support_input)) if self.augmentation else learner(support_input)
             output['labels'] = support_labels
             support_error = self.loss_func(output)
             learner.adapt(support_error) 
@@ -96,16 +98,18 @@ class VanillaMAML(GradientLearningBase):
 class Reptile(GradientLearningBase):
     
     """Based on code from orginal blog https://openai.com/blog/reptile/"""
-    def __init__(self, model, train_update_steps, test_update_steps, loss_func, optim_config, n_way, k_shot):
+    def __init__(self, model, train_update_steps, test_update_steps, loss_func, optim_config, k_shot,  augmentation=None):
         self.model = model
-        super().__init__(train_update_steps, test_update_steps, loss_func, optim_config, n_way, k_shot)
+        super().__init__(train_update_steps, test_update_steps, loss_func, optim_config, k_shot)
         self.automatic_optimization = False
         self.outer_steps = 0
         self.initial_lr = optim_config['outer_learning_rate']
+        self.augmentation = augmentation
 
     def meta_learn(self, batch):
         # to accumulate tasks change accumaluate gradients of trainer
         _inputs, labels = batch
+        labels = self.le.fit_transform(labels)
         (support_input, support_labels), (query_input, query_labels) = l2l.data.partition_task(_inputs, labels, shots=self.k_shot)
         
         old_weights = deepcopy(self.model.state_dict()) 
@@ -114,7 +118,7 @@ class Reptile(GradientLearningBase):
         # fast train
         for step in range(self.train_update_steps):
             opt.zero_grad()
-            output = self.model(support_input)
+            output = self.model(self.augmentation(support_input)) if self.augmentation else self.model(support_input)
             output['labels'] = support_labels
             support_error = self.loss_func(output)
             support_error.backward()
