@@ -167,7 +167,7 @@ def main(cfg: DictConfig):
         )
 
     wandb.login(key=cfg.secrets.wandb_key)
-    wandb_logger = WandbLogger(project='flickr8k-few-shot-learning', config=flatten_dict(cfg))
+    wandb_logger = WandbLogger(project='unimodal-isolated-few-shot-learning', config=flatten_dict(cfg))
     
     checkpoint_callback = ModelCheckpoint(
         dirpath='checkpoints', 

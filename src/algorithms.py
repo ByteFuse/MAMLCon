@@ -21,7 +21,7 @@ class GradientLearningBase(pl.LightningModule):
         self.le = LabelEncoder()
 
     def training_step(self, batch, batch_idx):
-        self.train = True
+        self.training = True
         query_loss, query_accuracy = self.meta_learn(batch)
 
         self.log(f"train_accuracy",query_accuracy, on_step=True, on_epoch=True, prog_bar=True, logger=True)
@@ -31,7 +31,7 @@ class GradientLearningBase(pl.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         torch.set_grad_enabled(True)
-        self.train = False
+        self.training = False
         query_loss, query_accuracy = self.meta_learn(batch)
 
         self.log(f"validation_accuracy",query_loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
@@ -53,7 +53,7 @@ class GradientLearningBase(pl.LightningModule):
     def meta_learn(self):
         raise NotImplementedError('User must impliment this method')
 
-    def calculate_accuracy(output):
+    def calculate_accuracy(self, output):
         logits, labels = output['logits'], output['labels']
         predicted_probs = F.softmax(logits, dim=1).detach().cpu()
         labels = labels.long().detach().cpu()
@@ -131,7 +131,7 @@ class Reptile(GradientLearningBase):
         query_error = self.loss_func(output)
         query_accuracy = self.calculate_accuracy(output)
 
-        if self.train:
+        if self.training:
             new_weights = self.model.state_dict()
             current_lr = self.initial_lr * (1 - self.outer_steps / self.trainer.max_steps) # linear schedule
             self.log(current_lr, on_step=True, on_epoch=True, prog_bar=False, logger=False)
