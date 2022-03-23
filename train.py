@@ -12,10 +12,10 @@ import torch.nn as nn
 from torchvision.transforms import Compose
 import torchaudio
 
-from src.models import WordClassificationAudio2DCnn, WordClassificationAudioCnn, WordClassificationRnn
+from src.models import WordClassificationAudio2DCnn, WordClassificationAudioCnnPool as WordClassificationAudioCnn, WordClassificationRnn
 from src.losses import ClassificationLoss
 from src.algorithms import VanillaMAML, Reptile
-from src.data.datasets import Flickr8kWordClassification
+from src.data.datasets import Flickr8kWordClassification, GoogleCommandsWordClassification
 from src.utils import flatten_dict
 
 import warnings
@@ -45,6 +45,18 @@ class WordData(pl.LightningDataModule):
                 stemming=self.cfg.stemming, 
                 lemmetise=self.cfg.lematise                
             )
+        elif self.cfg['dataset'] == 'google_commands':
+            train_dataset = GoogleCommandsWordClassification(
+                meta_path='./data/google_commands/google_commands_word_splits_train.csv',
+                audio_root='./data/google_commands/SpeechCommands/speech_commands_v0.02', 
+                conversion_config=self.cfg.conversion_method,  
+            )
+
+            val_dataset = GoogleCommandsWordClassification(
+                meta_path='./data/google_commands/google_commands_word_splits_validation.csv',
+                audio_root='./data/google_commands/SpeechCommands/speech_commands_v0.02', 
+                conversion_config=self.cfg.conversion_method,             
+            )           
         else:
             pass #TODO: Add in other datasets
 
@@ -187,7 +199,7 @@ def main(cfg: DictConfig):
         log_every_n_steps=2,   
         gpus=None if not torch.cuda.is_available() else -1,
         max_epochs=cfg.max_epochs,           
-        deterministic=True, 
+        deterministic=False, 
         precision=cfg.precision if cfg.method=='maml' else 32,
         profiler="simple",
         accumulate_grad_batches=cfg.batch_size,
