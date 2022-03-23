@@ -29,7 +29,7 @@ class Flickr8kWordClassification(torch.utils.data.Dataset):
         else:
             self.words = metadata.word.values
 
-        self.labels = self.words
+        self.labels = LabelEncoder().fit_transform(self.words)
         self.indices_to_labels = {i: label for i, label in enumerate(self.labels)}
         self.create_labels_to_indices()
         
@@ -54,28 +54,11 @@ class Flickr8kWordClassification(torch.utils.data.Dataset):
 
         audio_path = self.audio_files[idx]    
         audio = self.conversions[self.conversion_config['name']](audio_path, config=self.conversion_config)
-        audio = self.pad(audio)
         label = self.labels[idx]
         return audio, label
 
     def __len__(self):
         return len(self.audio_files)
-
-    def pad(self, audio):
-        max_samples=self.conversion_config['max_samples']
-        pad_both_sides=self.conversion_config['pad_both_sides']
-
-        audio = torch.tensor(audio)
-        if audio.shape[-1] > max_samples:
-            audio = audio[:,:max_samples]
-        else:
-            if pad_both_sides:
-                pad_lenght = int(max_samples-audio.shape[-1])//2
-                audio = F.pad(audio, (pad_lenght, pad_lenght+1 if int(max_samples-audio.shape[-1])%2!=0 else pad_lenght), 'constant', 0)
-            else:
-                audio = F.pad(audio, (0, int(max_samples-audio.shape[-1])), 'constant', 0)
-
-        return audio
 
 class GoogleCommandsWordClassification(Flickr8kWordClassification):
     def __init__(self, meta_path, audio_root, conversion_config):
@@ -83,7 +66,7 @@ class GoogleCommandsWordClassification(Flickr8kWordClassification):
         
         metadata = pd.read_csv(meta_path)
         self.audio_files = [os.path.join(audio_root, audio) for audio in tqdm(metadata.file, desc='Loading audio')]
-        self.labels = metadata.word.values
+        self.labels = LabelEncoder().fit_transform(metadata.word.values)
         self.indices_to_labels = {i: label for i, label in enumerate(self.labels)}
         self.create_labels_to_indices()
         
