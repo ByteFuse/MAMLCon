@@ -10,5 +10,7 @@ use_delta: True
 use_delta_delta: True
 normalize: True
 input_channels: 39
-max_samples: 150 # keep this constant for now
-pad_both_sides: True
+max_samples: 101 
+min_samples: 95
+pad_both_sides: False
+constant_size: True

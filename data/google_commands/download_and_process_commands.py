@@ -12,7 +12,7 @@ import os
 rootdir = './SpeechCommands/speech_commands_v0.02/'
 for it in os.scandir(rootdir):
     if it.is_dir():
-        paths = [os.path.join(it.path.split('/')[-1], f) for f in os.listdir(it.path)]
+        paths = [os.path.join(it.path.split('/')[-1], f).replace('\\', '/') for f in os.listdir(it.path)]
         files.extend(paths)
         words.extend([f.split('/')[0] for f in paths])
 
@@ -23,7 +23,6 @@ all_data = pd.DataFrame({'file': files, 'word': words})
 test_words  = ["bed", "bird", "cat", "dog", "happy", "house", "marvin", "sheila", "tree", "wow"]
 train_words = ['forward', 'off','left','go','no', 'down', 'one','zero','five','learn','backward','three','four','nine']
 val_words = ['up', 'stop', 'follow', 'right','yes','seven','six','eight','visual','two']
-
 
 training_data = all_data[all_data['word'].isin(train_words)]
 val_data =  all_data[all_data['word'].isin(val_words)]
