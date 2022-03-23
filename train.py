@@ -16,6 +16,7 @@ from src.models import WordClassificationAudio2DCnn, WordClassificationAudioCnnP
 from src.losses import ClassificationLoss
 from src.algorithms import VanillaMAML, Reptile
 from src.data.datasets import Flickr8kWordClassification, GoogleCommandsWordClassification
+from src.data.samplers import SpokenWordTaskBatchSampler
 from src.utils import flatten_dict
 
 import warnings
@@ -30,7 +31,7 @@ class WordData(pl.LightningDataModule):
 
     def setup(self, stage=None):
         if self.cfg['dataset'] == 'flickr8k':
-            train_dataset = Flickr8kWordClassification(
+            self.train_dataset = Flickr8kWordClassification(
                 meta_path='../../../../../../data/flickr/flickr8k_word_splits_train.csv',
                 audio_root='../../../../../../data/flickr/wavs/', 
                 conversion_config=self.cfg.conversion_method,
@@ -38,7 +39,7 @@ class WordData(pl.LightningDataModule):
                 lemmetise=self.cfg.lematise     
             )
 
-            val_dataset = Flickr8kWordClassification(
+            self.valiadation_dataset = Flickr8kWordClassification(
                 meta_path='../../../../../../data/flickr/flickr8k_word_splits_validation.csv',
                 audio_root='../../../../../../data/flickr/wavs/', 
                 conversion_config=self.cfg.conversion_method,
@@ -46,13 +47,13 @@ class WordData(pl.LightningDataModule):
                 lemmetise=self.cfg.lematise                
             )
         elif self.cfg['dataset'] == 'google_commands':
-            train_dataset = GoogleCommandsWordClassification(
+            self.train_dataset = GoogleCommandsWordClassification(
                 meta_path='./data/google_commands/google_commands_word_splits_train.csv',
                 audio_root='./data/google_commands/SpeechCommands/speech_commands_v0.02', 
                 conversion_config=self.cfg.conversion_method,  
             )
 
-            val_dataset = GoogleCommandsWordClassification(
+            self.valiadation_dataset = GoogleCommandsWordClassification(
                 meta_path='./data/google_commands/google_commands_word_splits_validation.csv',
                 audio_root='./data/google_commands/SpeechCommands/speech_commands_v0.02', 
                 conversion_config=self.cfg.conversion_method,             
@@ -60,41 +61,53 @@ class WordData(pl.LightningDataModule):
         else:
             pass #TODO: Add in other datasets
 
-        train_dataset = l2l.data.MetaDataset(train_dataset, indices_to_labels=train_dataset.indices_to_labels, labels_to_indices=train_dataset.labels_to_indices)
-        val_dataset = l2l.data.MetaDataset(val_dataset, indices_to_labels=val_dataset.indices_to_labels, labels_to_indices=val_dataset.labels_to_indices)
-
-        train_transforms = [
-            l2l.data.transforms.NWays(train_dataset, n=self.cfg['n_way']), 
-            l2l.data.transforms.KShots(train_dataset,k=self.cfg['k_shot']*2, replacement=False), 
-            l2l.data.transforms.LoadData(train_dataset)
-        ]
-        val_transforms = [
-            l2l.data.transforms.NWays(val_dataset, n=self.cfg['n_way']), 
-            l2l.data.transforms.KShots(val_dataset,k=self.cfg['k_shot']*2, replacement=False), 
-            l2l.data.transforms.LoadData(val_dataset)
-        ]
-
-        self.train_dataset = l2l.data.TaskDataset(train_dataset, train_transforms, num_tasks=self.cfg['epoch_n_tasks'])
-        self.valiadation_dataset = l2l.data.TaskDataset(val_dataset, val_transforms, num_tasks=self.cfg['epoch_n_tasks'])
-
+        train_labels = torch.tensor(self.train_dataset.labels)
+        validation_labels = torch.tensor(self.valiadation_dataset.labels)
+        
+        self.train_sampler = SpokenWordTaskBatchSampler(
+            dataset_targets=train_labels, 
+            N_way=self.cfg.n_way, 
+            K_shot=self.cfg.k_shot, 
+            min_samples=self.cfg.min_samples,
+            max_samples=self.cfg.max_samples,
+            include_query=True, 
+            shuffle=True,
+            constant_size = self.cfg.constant_size,
+            pad_both_sides=self.cfg.pad_both_sides
+        )
+        self.valiadation_sampler = SpokenWordTaskBatchSampler(
+            dataset_targets=validation_labels, 
+            N_way=self.cfg.n_way, 
+            K_shot=self.cfg.k_shot,
+            min_samples=self.cfg.min_samples,
+            max_samples=self.cfg.max_samples,
+            include_query=True, 
+            shuffle=False,
+            constant_size = self.cfg.constant_size,
+            pad_both_sides=self.cfg.pad_both_sides
+        )
+       
     # we define a separate DataLoader for each of train/val/test
     def train_dataloader(self):
-
         train_loader = torch.utils.data.DataLoader(
             self.train_dataset,
-            num_workers=8,
-            persistent_workers=True,
-            pin_memory=True
+            batch_sampler=self.train_sampler, 
+            collate_fn=self.train_sampler.get_collate_fn,
+            # num_workers=8,
+            # persistent_workers=True,
+            # pin_memory=True
         )
 
         return train_loader
 
     def val_dataloader(self):
         val_loader = torch.utils.data.DataLoader(
-            self.valiadation_dataset,  
-            num_workers=8,
-            persistent_workers=True,
-            pin_memory=True
+            self.valiadation_dataset,
+            batch_sampler=self.valiadation_sampler, 
+            collate_fn=self.valiadation_sampler.get_collate_fn, 
+            # num_workers=8,
+            # persistent_workers=True,
+            # pin_memory=True
         )
 
         return val_loader

@@ -2,7 +2,6 @@ from copy import deepcopy
 
 import learn2learn as l2l
 import pytorch_lightning as pl
-from sklearn.preprocessing import LabelEncoder
 
 import torch
 import torch.nn.functional as F
@@ -18,7 +17,6 @@ class GradientLearningBase(pl.LightningModule):
         self.loss_func = loss_func
         self.optim_config = optim_config
         self.k_shot = k_shot
-        self.le = LabelEncoder()
 
     def training_step(self, batch, batch_idx):
         self.training = True
@@ -50,6 +48,11 @@ class GradientLearningBase(pl.LightningModule):
         
         return optimizer
 
+    def slit_batch(self, _input, labels):
+        support_input, query_input = _input.chunk(2, dim=0)
+        support_labels, query_labels = labels.chunk(2, dim=0)
+        return support_input, support_labels, query_input, query_labels
+
     def meta_learn(self):
         raise NotImplementedError('User must impliment this method')
 
@@ -76,16 +79,13 @@ class VanillaMAML(GradientLearningBase):
     def meta_learn(self, batch):
         # to accumulate tasks change accumaluate gradients of trainer
         _inputs, labels = batch
-        
-        labels = torch.tensor(self.le.fit_transform(labels))
-        (support_input, support_labels), (query_input, query_labels) = l2l.data.partition_task(_inputs.squeeze(0), labels, shots=self.k_shot)
+        support_input, support_labels, query_input, query_labels = self.split_batch(_inputs, labels)
 
         learner = self.model.clone()
         learner.train()
             
         # fast train
         for step in range(self.train_update_steps):
-
             if self.training:
                 output = learner(self.augmentation(support_input)) if self.augmentation else learner(support_input)
             else:
@@ -116,8 +116,7 @@ class Reptile(GradientLearningBase):
     def meta_learn(self, batch):
         # to accumulate tasks change accumaluate gradients of trainer
         _inputs, labels = batch
-        labels = torch.tensor(self.le.fit_transform(labels))
-        (support_input, support_labels), (query_input, query_labels) = l2l.data.partition_task(_inputs.squeeze(0), labels, shots=self.k_shot)
+        support_input, support_labels, query_input, query_labels = self.split_batch(_inputs, labels)
         
         old_weights = deepcopy(self.model.state_dict()) 
         opt = self.optimizers()
