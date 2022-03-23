@@ -15,7 +15,6 @@ from src.data.processing import (
     raw_audio_to_mfcc
 )
 
-
 class Flickr8kWordClassification(torch.utils.data.Dataset):
     def __init__(self, meta_path, audio_root, conversion_config, stemming=False, lemmetise=False):
         assert conversion_config['name'] in ['melspec', 'spec', 'raw', 'mfcc'], 'audio_conversion_method must be one of: melspec, mfcc, spec, raw'
@@ -52,11 +51,11 @@ class Flickr8kWordClassification(torch.utils.data.Dataset):
         self.labels_to_indices = l2i
 
     def __getitem__(self, idx):
+
         audio_path = self.audio_files[idx]    
         audio = self.conversions[self.conversion_config['name']](audio_path, config=self.conversion_config)
         audio = self.pad(audio)
         label = self.labels[idx]
-
         return audio, label
 
     def __len__(self):
@@ -78,6 +77,20 @@ class Flickr8kWordClassification(torch.utils.data.Dataset):
 
         return audio
 
-
-
-
+class GoogleCommandsWordClassification(Flickr8kWordClassification):
+    def __init__(self, meta_path, audio_root, conversion_config):
+        assert conversion_config['name'] in ['melspec', 'spec', 'raw', 'mfcc'], 'audio_conversion_method must be one of: melspec, mfcc, spec, raw'
+        
+        metadata = pd.read_csv(meta_path)
+        self.audio_files = [os.path.join(audio_root, audio) for audio in tqdm(metadata.file, desc='Loading audio')]
+        self.labels = metadata.word.values
+        self.indices_to_labels = {i: label for i, label in enumerate(self.labels)}
+        self.create_labels_to_indices()
+        
+        self.conversion_config = conversion_config
+        self.conversions = {
+            'melspec': raw_audio_to_melspectrogram,
+            'spec': raw_audio_to_logspectrogram,
+            'mfcc': raw_audio_to_mfcc,
+            'raw': load_and_process_audio,
+        }
