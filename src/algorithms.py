@@ -80,7 +80,7 @@ class VanillaMAML(GradientLearningBase):
         # to accumulate tasks change accumaluate gradients of trainer
         _inputs, labels = batch
         support_input, support_labels, query_input, query_labels = self.split_batch(_inputs, labels)
-
+    
         learner = self.model.clone()
         learner.train()
             

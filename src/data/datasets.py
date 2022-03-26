@@ -51,10 +51,10 @@ class Flickr8kWordClassification(torch.utils.data.Dataset):
         self.labels_to_indices = l2i
 
     def __getitem__(self, idx):
-
         audio_path = self.audio_files[idx]    
         audio = self.conversions[self.conversion_config['name']](audio_path, config=self.conversion_config)
         label = self.labels[idx]
+
         return audio, label
 
     def __len__(self):
