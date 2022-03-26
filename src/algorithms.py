@@ -48,7 +48,7 @@ class GradientLearningBase(pl.LightningModule):
         
         return optimizer
 
-    def slit_batch(self, _input, labels):
+    def split_batch(self, _input, labels):
         support_input, query_input = _input.chunk(2, dim=0)
         support_labels, query_labels = labels.chunk(2, dim=0)
         return support_input, support_labels, query_input, query_labels

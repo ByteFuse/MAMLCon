@@ -48,14 +48,14 @@ class WordData(pl.LightningDataModule):
             )
         elif self.cfg['dataset'] == 'google_commands':
             self.train_dataset = GoogleCommandsWordClassification(
-                meta_path='./data/google_commands/google_commands_word_splits_train.csv',
-                audio_root='./data/google_commands/SpeechCommands/speech_commands_v0.02', 
+                meta_path='../../../../../../data/google_commands/google_commands_word_splits_train.csv',
+                audio_root='../../../../../../data/google_commands/SpeechCommands/speech_commands_v0.02', 
                 conversion_config=self.cfg.conversion_method,  
             )
 
             self.valiadation_dataset = GoogleCommandsWordClassification(
-                meta_path='./data/google_commands/google_commands_word_splits_validation.csv',
-                audio_root='./data/google_commands/SpeechCommands/speech_commands_v0.02', 
+                meta_path='../../../../../../data/google_commands/google_commands_word_splits_validation.csv',
+                audio_root='../../../../../../data/google_commands/SpeechCommands/speech_commands_v0.02', 
                 conversion_config=self.cfg.conversion_method,             
             )           
         else:
@@ -63,28 +63,28 @@ class WordData(pl.LightningDataModule):
 
         train_labels = torch.tensor(self.train_dataset.labels)
         validation_labels = torch.tensor(self.valiadation_dataset.labels)
-        
+
         self.train_sampler = SpokenWordTaskBatchSampler(
             dataset_targets=train_labels, 
             N_way=self.cfg.n_way, 
             K_shot=self.cfg.k_shot, 
-            min_samples=self.cfg.min_samples,
-            max_samples=self.cfg.max_samples,
+            min_samples=self.cfg.conversion_method.min_samples,
+            max_samples=self.cfg.conversion_method.max_samples,
             include_query=True, 
             shuffle=True,
-            constant_size = self.cfg.constant_size,
-            pad_both_sides=self.cfg.pad_both_sides
+            constant_size = self.cfg.conversion_method.constant_size,
+            pad_both_sides=self.cfg.conversion_method.pad_both_sides
         )
         self.valiadation_sampler = SpokenWordTaskBatchSampler(
             dataset_targets=validation_labels, 
             N_way=self.cfg.n_way, 
             K_shot=self.cfg.k_shot,
-            min_samples=self.cfg.min_samples,
-            max_samples=self.cfg.max_samples,
+            min_samples=self.cfg.conversion_method.min_samples,
+            max_samples=self.cfg.conversion_method.max_samples,
             include_query=True, 
             shuffle=False,
-            constant_size = self.cfg.constant_size,
-            pad_both_sides=self.cfg.pad_both_sides
+            constant_size = self.cfg.conversion_method.constant_size,
+            pad_both_sides=self.cfg.conversion_method.pad_both_sides
         )
        
     # we define a separate DataLoader for each of train/val/test
@@ -93,9 +93,9 @@ class WordData(pl.LightningDataModule):
             self.train_dataset,
             batch_sampler=self.train_sampler, 
             collate_fn=self.train_sampler.get_collate_fn,
-            # num_workers=8,
-            # persistent_workers=True,
-            # pin_memory=True
+            num_workers=8,
+            persistent_workers=True,
+            pin_memory=True
         )
 
         return train_loader
@@ -105,9 +105,9 @@ class WordData(pl.LightningDataModule):
             self.valiadation_dataset,
             batch_sampler=self.valiadation_sampler, 
             collate_fn=self.valiadation_sampler.get_collate_fn, 
-            # num_workers=8,
-            # persistent_workers=True,
-            # pin_memory=True
+            num_workers=8,
+            persistent_workers=True,
+            pin_memory=True
         )
 
         return val_loader
@@ -217,6 +217,8 @@ def main(cfg: DictConfig):
         profiler="simple",
         accumulate_grad_batches=cfg.batch_size,
         gradient_clip_val=cfg.optim.gradient_clip_val,
+        limit_train_batches = cfg.epoch_n_tasks,
+        limit_val_batches = cfg.epoch_n_tasks,
         callbacks=[checkpoint_callback, lr_monitor, earlystop_callback]
     )
 

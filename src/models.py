@@ -61,32 +61,38 @@ class WordClassificationAudio2DCnn(nn.Module):
 
         conv1 = nn.Sequential(
             nn.Conv2d(in_channels=1, out_channels=hidden_dim, kernel_size=(3,3), stride=(2,2), padding=1),
-            nn.BatchNorm2d(hidden_dim, track_running_stats=False),
             nn.ReLU(),
+            nn.BatchNorm2d(hidden_dim, track_running_stats=False),
         )
 
         conv2 = nn.Sequential(
             nn.Conv2d(in_channels=hidden_dim, out_channels=hidden_dim, kernel_size=(3,3), stride=(2,2), padding=1),
-            nn.BatchNorm2d(hidden_dim, track_running_stats=False),
             nn.ReLU(),
+            nn.BatchNorm2d(hidden_dim, track_running_stats=False),
         )
 
         conv3 = nn.Sequential(
             nn.Conv2d(in_channels=hidden_dim, out_channels=hidden_dim, kernel_size=(3,3), stride=(2,2), padding=1),
-            nn.BatchNorm2d(hidden_dim, track_running_stats=False),
             nn.ReLU(),
+            nn.BatchNorm2d(hidden_dim, track_running_stats=False),
+        )
+
+        conv4 = nn.Sequential(
+            nn.Conv2d(in_channels=hidden_dim, out_channels=hidden_dim, kernel_size=(3,3), stride=(2,2), padding=1),
+            nn.ReLU(),
+            nn.BatchNorm2d(hidden_dim, track_running_stats=False),
         )
 
         self.encoder = nn.ModuleList([
-            conv1, conv2, conv3
+            conv1, conv2, conv3, conv4
         ])  
 
         self.flatten = nn.Flatten()
 
-        if input_channels == 32:
-          self.projection = nn.Linear(26112, embedding_dim)
-        elif input_channels == 128:
-          self.projection = nn.Linear(130560, embedding_dim)
+        if input_channels == 39:
+          self.projection = nn.Linear(1344, embedding_dim)
+        else:
+          self.projection = nn.Linear(3584, embedding_dim)
 
     def forward(self, audio):
         # adding in channel batch if not there
