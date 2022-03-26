@@ -1,4 +1,5 @@
 from collections import defaultdict
+from dataclasses import replace
 import random
 
 import numpy as np
@@ -10,7 +11,7 @@ from sklearn.preprocessing import LabelEncoder
 class FewShotBatchSampler:
     def __init__(self, dataset_targets, N_way, K_shot, include_query=False, shuffle=True, shuffle_once=False):
         """
-        Code is adapted from the brilliant tutorials found at the following link:
+        Code is adapted from the tutorials found at the following link:
         https://pytorch-lightning.readthedocs.io/en/latest/notebooks/course_UvA-DL/12-meta-learning.html
         """
         super().__init__()
@@ -27,6 +28,8 @@ class FewShotBatchSampler:
         # Organize examples by class
         self.classes = torch.unique(self.dataset_targets).tolist()
         self.num_classes = len(self.classes)
+        assert self.num_classes >= N_way, 'N way can not be bigger than number of available classes'
+
         self.indices_per_class = {}
         self.batches_per_class = {}  # Number of K-shot batches that each class can provide
         for c in self.classes:
@@ -35,35 +38,12 @@ class FewShotBatchSampler:
 
         # Create a list of classes from which we select the N classes per batch
         self.iterations = sum(self.batches_per_class.values()) // self.N_way
-        self.class_list = [c for c in self.classes for _ in range(self.batches_per_class[c])]
-        if shuffle_once or self.shuffle:
-            self.shuffle_data()
-        else:
-            # For testing, we iterate over classes instead of shuffling them
-            sort_idxs = [
-                i + p * self.num_classes for i, c in enumerate(self.classes) for p in range(self.batches_per_class[c])
-            ]
-            self.class_list = np.array(self.class_list)[np.argsort(sort_idxs)].tolist()
-
-    def shuffle_data(self):
-        # Shuffle the examples per class
-        for c in self.classes:
-            perm = torch.randperm(self.indices_per_class[c].shape[0])
-            self.indices_per_class[c] = self.indices_per_class[c][perm]
-        # Shuffle the class list from which we sample. Note that this way of shuffling
-        # does not prevent to choose the same class twice in a batch. However, for
-        # training and validation, this is not a problem.
-        random.shuffle(self.class_list)
 
     def __iter__(self):
-        # Shuffle data
-        if self.shuffle:
-            self.shuffle_data()
-
         # Sample few-shot batches
         start_index = defaultdict(int) # default dict value is now 0
         for it in range(self.iterations):
-            class_batch = self.class_list[it * self.N_way : (it + 1) * self.N_way]  # Select N classes for the batch
+            class_batch = np.random.choice(self.classes, replace=False, size=self.N_way)  # Select N classes for the batch
             index_batch = []
             for c in class_batch:  # For each class, select the next K examples and add them to the batch
                 index_batch.extend(self.indices_per_class[c][start_index[c] : start_index[c] + self.K_shot])
@@ -115,7 +95,6 @@ class SpokenWordTaskBatchSampler:
         return len(self.batch_sampler) // self.task_batch_size
 
     def get_collate_fn(self, item_list):
-        
         min_samples=self.min_samples
         max_samples=self.max_samples
         constant_size=self.constant_size
