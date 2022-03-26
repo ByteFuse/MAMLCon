@@ -1,6 +1,7 @@
 import librosa
 import numpy as np
 import torch
+import torch.nn.functional as F
 
 def load_and_process_audio(audio_path, sample_rate=16000, config=None):
     if config:
@@ -75,7 +76,13 @@ def raw_audio_to_mfcc(audio_path, config):
                 )
 
     if config['use_delta']:
-        mfcc_delta = librosa.feature.delta(mfcc, width=config['width'])
+        try:
+            mfcc_delta = librosa.feature.delta(mfcc, width=config['width'])
+        except:
+            # extend audio lenght to be able to calculate dela
+            mfcc = torch.tensor(mfcc)
+            mfcc = F.pad(mfcc, (0, int(101-mfcc.size(-1))), 'constant', 0).numpy()
+            mfcc_delta = librosa.feature.delta(mfcc, width=config['width'])
 
         if config['use_delta_delta']:
             mfcc_delta_delta = librosa.feature.delta(mfcc, order=2, width=config['width'])

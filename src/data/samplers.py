@@ -45,9 +45,18 @@ class FewShotBatchSampler:
         for it in range(self.iterations):
             class_batch = np.random.choice(self.classes, replace=False, size=self.N_way)  # Select N classes for the batch
             index_batch = []
+
             for c in class_batch:  # For each class, select the next K examples and add them to the batch
-                index_batch.extend(self.indices_per_class[c][start_index[c] : start_index[c] + self.K_shot])
+                indeces = self.indices_per_class[c][start_index[c] : start_index[c] + self.K_shot]
+                index_batch.extend(indeces)
                 start_index[c] += self.K_shot
+                
+                if len(indeces)!=self.K_shot:
+                    start_index[c] = 0
+                    indeces = self.indices_per_class[c][start_index[c] : start_index[c] + (self.K_shot-len(indeces))]
+                    index_batch.extend(indeces)
+                    start_index[c] += self.K_shot-len(indeces)
+                    
             if self.include_query:  # If we return support+query set, sort them so that they are easy to split
                 index_batch = index_batch[::2] + index_batch[1::2]
             yield index_batch
@@ -130,8 +139,9 @@ class SpokenWordTaskBatchSampler:
 
         audio = [pad_audio(x) for x in audio]
         audio = torch.stack(audio, dim=0)
-        words =  torch.tensor(le.fit_transform(np.array(words))) # get into numbers makes everything easier
 
+        words =  torch.tensor(le.fit_transform(np.array(words))) # get into numbers makes everything easier
         audio = audio.chunk(self.task_batch_size, dim=0)[0]
         words = words.chunk(self.task_batch_size, dim=0)[0]
+       
         return audio, words
