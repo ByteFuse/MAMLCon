@@ -40,8 +40,9 @@ def raw_audio_to_logspectrogram(audio_path,  config):
 
     return logspec
 
-def raw_audio_to_melspectrogram(audio_path, config):
-    audio = load_and_process_audio(audio_path, config['sample_rate'])
+def raw_audio_to_melspectrogram(audio_path, config, audio=None):
+    if not audio:
+        audio = load_and_process_audio(audio_path, config['sample_rate'])
 
     mel_spec = librosa.feature.melspectrogram(
         audio,
@@ -60,8 +61,9 @@ def raw_audio_to_melspectrogram(audio_path, config):
     logmel = torch.tensor(logmel/80)  
     return logmel
 
-def raw_audio_to_mfcc(audio_path, config):
-    audio = load_and_process_audio(audio_path, config['sample_rate'])
+def raw_audio_to_mfcc(audio_path, config, audio=None):
+    if audio is None:
+        audio = load_and_process_audio(audio_path, config['sample_rate'])
     
     mfcc = librosa.feature.mfcc(
                 audio,

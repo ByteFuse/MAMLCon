@@ -98,7 +98,6 @@ class WordClassificationAudio2DCnn(nn.Module):
         # adding in channel batch if not there
         if len(audio.shape)!=4:
             audio = audio.unsqueeze(1)
-
         for conv in self.encoder:
             audio = conv(audio)
         
