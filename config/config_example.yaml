@@ -3,7 +3,7 @@ defaults:
   - optim: adam
   - conversion_method: mfcc
 
-dataset: 'flickr8k'
+dataset: 'google_commands'
 stemming: True
 lematise: False
 batch_size: 1
@@ -23,6 +23,6 @@ secrets:
 
 hydra:
   run:
-    dir: ./training_results/${dataset}/${method}/${encoder.name}/${conversion_method.name}/
+    dir: ./ # we only run multiruns to ensure we seperate each result
   sweep:
     dir: ./training_results/${dataset}/${method}/${encoder.name}/${conversion_method.name}/
