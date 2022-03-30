@@ -1,4 +1,5 @@
 import os
+from tkinter import Label
 from tqdm import tqdm
 
 import numpy as np
@@ -6,7 +7,6 @@ import pandas as pd
 from sklearn.preprocessing import LabelEncoder
 
 import torch
-import torch.nn.functional as F
 
 from src.data.processing import (
     load_and_process_audio,
@@ -23,13 +23,15 @@ class Flickr8kWordClassification(torch.utils.data.Dataset):
         self.audio_files = [os.path.join(audio_root, audio) for audio in tqdm(metadata.file, desc='Loading audio')]
 
         if stemming:
-            self.words = metadata.stem.values
+            self.words = list(metadata.stem.values)
         elif lemmetise:
-            self.words = metadata.lem.values
+            self.words = list(metadata.lem.values)
         else:
-            self.words = metadata.word.values
+            self.words = list(metadata.word.values)
+        
+        le = LabelEncoder()
+        self.labels = le.fit_transform(self.words)
 
-        self.labels = LabelEncoder().fit_transform(self.words)
         self.indices_to_labels = {i: label for i, label in enumerate(self.labels)}
         self.create_labels_to_indices()
         
@@ -52,7 +54,11 @@ class Flickr8kWordClassification(torch.utils.data.Dataset):
 
     def __getitem__(self, idx):
         audio_path = self.audio_files[idx]    
-        audio = self.conversions[self.conversion_config['name']](audio_path, config=self.conversion_config)
+        
+        if os.path.exists(audio_path.replace('.wav', '.npy')):
+            audio = np.load(audio_path.replace('.wav', '.npy'), allow_pickle=True)
+        else:
+            audio = self.conversions[self.conversion_config['name']](audio_path, config=self.conversion_config)
         label = self.labels[idx]
 
         return audio, label

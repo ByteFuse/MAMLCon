@@ -1,13 +1,59 @@
+import os
 from collections import defaultdict
-from dataclasses import replace
 import random
-
+import librosa
 import numpy as np
 import torch
 import torch.nn.functional as F
 
 from sklearn.preprocessing import LabelEncoder
 
+from src.data.processing import raw_audio_to_melspectrogram, raw_audio_to_mfcc
+
+
+def sample_noise(conversion_cfg):
+    #sample random noise
+    noise_root = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sample_noises/_background_noise_')
+    noise_options = os.listdir(noise_root)
+    noise_path = os.path.join(noise_root, random.choice(noise_options))
+
+    noise = librosa.load(noise_path, sr=conversion_cfg['sample_rate'])[0]
+    random_start_index = random.choice(list(range(len(noise)-16500)))
+    noise = noise[random_start_index:random_start_index+16000] #sample 1 second of noise
+
+    if conversion_cfg.name=='mfcc':
+        noise = raw_audio_to_mfcc(None, conversion_cfg, noise)
+    else:
+        noise = raw_audio_to_melspectrogram(None, conversion_cfg, noise)
+
+    return torch.tensor(noise)
+
+
+def sample_unkown_word(backward_steps='../../../../../../'):
+    #sample random word from official test set - ONLY USE FOR TABLE CREATION
+    unkown_word = random.choice([
+        "bed", "bird", "cat", "dog", "happy", "house", "marvin", "sheila", "tree", "wow"]
+    )
+    # same path as in main train file, will only work then
+    unkown_root = os.path.join(
+        f'{backward_steps}data/google_commands/SpeechCommands/speech_commands_v0.02/', 
+        unkown_word
+    )
+    unkown_options = [f for f in os.listdir(unkown_root) if '.npy' in f]
+    unkown_path = os.path.join(unkown_root, random.choice(unkown_options))
+
+    unkown = np.load(unkown_path.replace('.wav', '.npy'), allow_pickle=True)
+    return torch.tensor(unkown)
+
+def sample_noise_unknown_words(label, conversion_cfg, k_shot):
+    assert label in [-1,-2], 'label must be -1 or -2'
+    if label == -2:
+        noise = [sample_noise(conversion_cfg) for _ in range(k_shot)]
+        return noise
+    elif label == -1:
+        unkown = [sample_unkown_word() for _ in range(k_shot)]
+        return unkown
+    
 class FewShotBatchSampler:
     def __init__(self, dataset_targets, N_way, K_shot, include_query=False, shuffle=True, shuffle_once=False):
         """
@@ -21,6 +67,7 @@ class FewShotBatchSampler:
         self.K_shot = K_shot
         self.shuffle = shuffle
         self.include_query = include_query
+
         if self.include_query:
             self.K_shot *= 2
         self.batch_size = self.N_way * self.K_shot  # Number of overall images per batch
@@ -43,7 +90,7 @@ class FewShotBatchSampler:
         # Sample few-shot batches
         start_index = defaultdict(int) # default dict value is now 0
         for it in range(self.iterations):
-            class_batch = np.random.choice(self.classes, replace=False, size=self.N_way)  # Select N classes for the batch
+            class_batch = list(np.random.choice(self.classes, replace=False, size=self.N_way))  # Select N classes for the batch
             index_batch = []
 
             for c in class_batch:  # For each class, select the next K examples and add them to the batch
@@ -56,7 +103,7 @@ class FewShotBatchSampler:
                     indeces = self.indices_per_class[c][start_index[c] : start_index[c] + (self.K_shot-len(indeces))]
                     index_batch.extend(indeces)
                     start_index[c] += self.K_shot-len(indeces)
-                    
+
             if self.include_query:  # If we return support+query set, sort them so that they are easy to split
                 index_batch = index_batch[::2] + index_batch[1::2]
             yield index_batch
@@ -71,6 +118,8 @@ class SpokenWordTaskBatchSampler:
         dataset_targets, 
         N_way, 
         K_shot, 
+        conversion_cfg=None, # must be provided if using noise labels
+        noise_labels=None, #-1=unknown, -2=noise
         min_samples=80500,
         max_samples=80500, 
         include_query=False, 
@@ -83,6 +132,10 @@ class SpokenWordTaskBatchSampler:
         https://pytorch-lightning.readthedocs.io/en/latest/notebooks/course_UvA-DL/12-meta-learning.html
         """
         super().__init__()
+
+        if noise_labels:
+            assert conversion_cfg, 'No conversion method provided for noise labels'
+
         self.batch_sampler = FewShotBatchSampler(dataset_targets, N_way, K_shot, include_query, shuffle)
         self.task_batch_size = 1
         self.local_batch_size = self.batch_sampler.batch_size
@@ -90,6 +143,10 @@ class SpokenWordTaskBatchSampler:
         self.max_samples = max_samples
         self.constant_size = constant_size
         self.pad_both_sides = pad_both_sides
+        self.noise_labels = noise_labels
+        self.conversion_cfg = conversion_cfg
+        self.k_shot = K_shot
+        self.n_way = N_way
 
     def __iter__(self):
         # Aggregate multiple batches before returning the indices
@@ -126,6 +183,13 @@ class SpokenWordTaskBatchSampler:
             max_audio_len = min_samples if max_audio_len < min_samples else max_audio_len
             max_audio_len = max_samples if max_audio_len > max_samples else max_audio_len
 
+        # sneak in the noise labels here
+        if self.noise_labels:
+            for label in self.noise_labels:
+                noise = sample_noise_unknown_words(label, self.conversion_cfg, self.k_shot*2)
+                audio = audio[:self.n_way*self.k_shot] + noise[:self.k_shot] + audio[self.n_way*self.k_shot:] + noise[self.k_shot:]
+                words = words[:self.n_way*self.k_shot] + [label] * self.k_shot + words[self.n_way*self.k_shot:] + [label] * self.k_shot
+
         def pad_audio(x):
             if x.size(-1) > max_audio_len:
                 x = x[:,:max_audio_len]
@@ -139,7 +203,6 @@ class SpokenWordTaskBatchSampler:
 
         audio = [pad_audio(x) for x in audio]
         audio = torch.stack(audio, dim=0)
-
         words =  torch.tensor(le.fit_transform(np.array(words))) # get into numbers makes everything easier
         audio = audio.chunk(self.task_batch_size, dim=0)[0]
         words = words.chunk(self.task_batch_size, dim=0)[0]
