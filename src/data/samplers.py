@@ -29,15 +29,19 @@ def sample_noise(conversion_cfg):
     return torch.tensor(noise)
 
 
-def sample_unkown_word(conversion_cfg):
+def sample_unkown_word(conversion_cfg, backward_steps='../../../../../../'):
     #sample random word from official test set - ONLY USE FOR TABLE CREATION
-    unkown_word = random.choice(["bed", "bird", "cat", "dog", "happy", "house", "marvin", "sheila", "tree", "wow"])
-    unkown_root = os.path.join('../../google_commands/SpeechCommands/speech_commands_v0.02/', unkown_word)
+    unkown_word = random.choice([
+        "bed", "bird", "cat", "dog", "happy", "house", "marvin", "sheila", "tree", "wow"]
+    )
+    # same path as in main train file, will only work then
+    unkown_root = os.path.join(
+        f'{backward_steps}data/google_commands/SpeechCommands/speech_commands_v0.02/', 
+        unkown_word
+    )
     unkown_options = os.listdir(unkown_root)
     unkown_path = os.path.join(unkown_root, random.choice(unkown_options))
-
     unkown = librosa.load(unkown_path, sr=conversion_cfg['sample_rate'])[0]
-
     if conversion_cfg.name=='mfcc':
         unkown = raw_audio_to_mfcc(None, conversion_cfg, unkown)
     else:

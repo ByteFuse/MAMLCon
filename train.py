@@ -1,5 +1,4 @@
 import hydra
-import learn2learn as l2l
 from omegaconf import DictConfig
 import wandb
 
@@ -147,14 +146,13 @@ class MetaModel(nn.Module):
         elif noise_labels == 'both':
             extra_classes = 2
         else:
-            extra_classes = None
+            extra_classes = 0
 
         self.encoder = encoder
         self.classification_layer = nn.Sequential(
             nn.ReLU(),
             nn.Linear(embedding_dim, n_classes+extra_classes)
         )
-
         self.return_features = return_features
 
     def forward(self, audio):
@@ -240,7 +238,7 @@ def main(cfg: DictConfig):
     callbacks = [checkpoint_callback, lr_monitor, earlystop_callback] if cfg.method=='maml' else [checkpoint_callback, earlystop_callback]
 
     trainer = pl.Trainer(
-        # logger=wandb_logger,    
+        logger=wandb_logger,    
         log_every_n_steps=2,   
         gpus=None if not torch.cuda.is_available() else -1,
         max_epochs=cfg.max_epochs,           
@@ -251,7 +249,7 @@ def main(cfg: DictConfig):
         gradient_clip_val=cfg.optim.gradient_clip_val,
         limit_train_batches = cfg.epoch_n_tasks,
         limit_val_batches = cfg.epoch_n_tasks,
-        callbacks=[checkpoint_callback, lr_monitor, earlystop_callback]
+        callbacks=callbacks
     )
 
     trainer.fit(algorithm, data)
