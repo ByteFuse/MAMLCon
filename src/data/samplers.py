@@ -10,6 +10,7 @@ from sklearn.preprocessing import LabelEncoder
 
 from src.data.processing import raw_audio_to_melspectrogram, raw_audio_to_mfcc
 
+
 def sample_noise(conversion_cfg):
     #sample random noise
     noise_root = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sample_noises/_background_noise_')
@@ -28,10 +29,30 @@ def sample_noise(conversion_cfg):
     return torch.tensor(noise)
 
 
+def sample_unkown_word(conversion_cfg):
+    #sample random word from official test set - ONLY USE FOR TABLE CREATION
+    unkown_word = random.choice(["bed", "bird", "cat", "dog", "happy", "house", "marvin", "sheila", "tree", "wow"])
+    unkown_root = os.path.join('../../google_commands/SpeechCommands/speech_commands_v0.02/', unkown_word)
+    unkown_options = os.listdir(unkown_root)
+    unkown_path = os.path.join(unkown_root, random.choice(unkown_options))
+
+    unkown = librosa.load(unkown_path, sr=conversion_cfg['sample_rate'])[0]
+
+    if conversion_cfg.name=='mfcc':
+        unkown = raw_audio_to_mfcc(None, conversion_cfg, unkown)
+    else:
+        unkown = raw_audio_to_melspectrogram(None, conversion_cfg, unkown)
+
+    return torch.tensor(unkown)
+
 def sample_noise_unknown_words(label, conversion_cfg, k_shot):
+    assert label in [-1,-2], 'label must be -1 or -2'
     if label == -2:
         noise = [sample_noise(conversion_cfg) for _ in range(k_shot)]
-    return noise
+        return noise
+    elif label == -1:
+        unkown = [sample_unkown_word(conversion_cfg) for _ in range(k_shot)]
+        return unkown
     
 class FewShotBatchSampler:
     def __init__(self, dataset_targets, N_way, K_shot, include_query=False, shuffle=True, shuffle_once=False):
