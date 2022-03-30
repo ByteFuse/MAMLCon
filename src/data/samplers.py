@@ -29,7 +29,7 @@ def sample_noise(conversion_cfg):
     return torch.tensor(noise)
 
 
-def sample_unkown_word(conversion_cfg, backward_steps='../../../../../../'):
+def sample_unkown_word(backward_steps='../../../../../../'):
     #sample random word from official test set - ONLY USE FOR TABLE CREATION
     unkown_word = random.choice([
         "bed", "bird", "cat", "dog", "happy", "house", "marvin", "sheila", "tree", "wow"]
@@ -39,14 +39,10 @@ def sample_unkown_word(conversion_cfg, backward_steps='../../../../../../'):
         f'{backward_steps}data/google_commands/SpeechCommands/speech_commands_v0.02/', 
         unkown_word
     )
-    unkown_options = os.listdir(unkown_root)
+    unkown_options = [f for f in os.listdir(unkown_root) if '.npy' in f]
     unkown_path = os.path.join(unkown_root, random.choice(unkown_options))
-    unkown = librosa.load(unkown_path, sr=conversion_cfg['sample_rate'])[0]
-    if conversion_cfg.name=='mfcc':
-        unkown = raw_audio_to_mfcc(None, conversion_cfg, unkown)
-    else:
-        unkown = raw_audio_to_melspectrogram(None, conversion_cfg, unkown)
 
+    unkown = np.load(unkown_path.replace('.wav', '.npy'), allow_pickle=True)
     return torch.tensor(unkown)
 
 def sample_noise_unknown_words(label, conversion_cfg, k_shot):
@@ -55,7 +51,7 @@ def sample_noise_unknown_words(label, conversion_cfg, k_shot):
         noise = [sample_noise(conversion_cfg) for _ in range(k_shot)]
         return noise
     elif label == -1:
-        unkown = [sample_unkown_word(conversion_cfg) for _ in range(k_shot)]
+        unkown = [sample_unkown_word() for _ in range(k_shot)]
         return unkown
     
 class FewShotBatchSampler:
