@@ -31,3 +31,16 @@ test_data = all_data[all_data['word'].isin(test_words)]
 training_data.to_csv('./google_commands_word_splits_train.csv', index=False)
 val_data.to_csv('./google_commands_word_splits_validation.csv', index=False)
 test_data.to_csv('./google_commands_word_splits_test.csv', index=False)
+
+# # split dataset into digit and commands
+test_words  = ["bed", "bird", "cat", "dog", "happy", "house", "marvin", "sheila", "tree", "wow"]
+train_words = ['forward', 'off','left','go','no', 'down', 'learn','backward','stop', 'follow', 'right','yes','visual', 'up',]
+val_words = ['one','zero', 'five', 'three','four','nine' ,'seven','six','eight','two']
+
+training_data = all_data[all_data['word'].isin(train_words)]
+val_data =  all_data[all_data['word'].isin(val_words)]
+test_data = all_data[all_data['word'].isin(test_words)]
+
+training_data.to_csv('./google_commands_word_splits_commands.csv', index=False)
+val_data.to_csv('./google_commands_word_splits_digits.csv', index=False)
+test_data.to_csv('./google_commands_word_splits_test_commands.csv', index=False)
