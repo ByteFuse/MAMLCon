@@ -250,10 +250,10 @@ def main(cfg: DictConfig):
     callbacks = [checkpoint_callback, lr_monitor, earlystop_callback] if cfg.method=='maml' else [checkpoint_callback, earlystop_callback]
 
     trainer = pl.Trainer(
-        # logger=wandb_logger,    
+        logger=wandb_logger,    
         log_every_n_steps=2,   
         gpus=None if not torch.cuda.is_available() else -1,
-        max_epochs=cfg.max_epochs,           
+        max_steps=cfg.max_steps,           
         deterministic=False, 
         precision=cfg.precision if cfg.method=='maml' else 32,
         profiler="simple",

@@ -12,7 +12,7 @@ import os
 rootdir = './SpeechCommands/speech_commands_v0.02/'
 for it in os.scandir(rootdir):
     if it.is_dir():
-        paths = [os.path.join(it.path.split('/')[-1], f).replace('\\', '/') for f in os.listdir(it.path)]
+        paths = [os.path.join(it.path.split('/')[-1], f).replace('\\', '/') for f in os.listdir(it.path) if f.endswith('.wav')]
         files.extend(paths)
         words.extend([f.split('/')[0] for f in paths])
 
@@ -39,7 +39,6 @@ val_words = ['one','zero', 'five', 'three','four','nine' ,'seven','six','eight',
 
 training_data = all_data[all_data['word'].isin(train_words)]
 val_data =  all_data[all_data['word'].isin(val_words)]
-test_data = all_data[all_data['word'].isin(test_words)]
 
 training_data.to_csv('./google_commands_word_splits_commands.csv', index=False)
 val_data.to_csv('./google_commands_word_splits_digits.csv', index=False)
