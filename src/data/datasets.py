@@ -56,7 +56,7 @@ class Flickr8kWordClassification(torch.utils.data.Dataset):
         audio_path = self.audio_files[idx]    
         
         if os.path.exists(audio_path.replace('.wav', '.npy')):
-            audio = np.load(audio_path)
+            audio = np.load(audio_path.replace('.wav', '.npy'), allow_pickle=True)
         else:
             audio = self.conversions[self.conversion_config['name']](audio_path, config=self.conversion_config)
         label = self.labels[idx]
