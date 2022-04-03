@@ -1,2 +1,2 @@
 name: "2d_cnn"
-hidden_dim: 512
+hidden_dim: 64
