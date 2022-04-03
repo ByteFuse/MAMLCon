@@ -31,42 +31,42 @@ class WordData(pl.LightningDataModule):
     def setup(self, stage=None):
         if self.cfg['dataset'] == 'flickr8k':
             self.train_dataset = Flickr8kWordClassification(
-                meta_path='../../../../../../data/flickr/flickr8k_word_splits_train.csv',
-                audio_root='../../../../../../data/flickr/wavs/', 
+                meta_path='../../../../../../../../data/flickr/flickr8k_word_splits_train.csv',
+                audio_root='../../../../../../../../data/flickr/wavs/', 
                 conversion_config=self.cfg.conversion_method,
                 stemming=self.cfg.stemming, 
                 lemmetise=self.cfg.lematise     
             )
 
             self.valiadation_dataset = Flickr8kWordClassification(
-                meta_path='../../../../../../data/flickr/flickr8k_word_splits_validation.csv',
-                audio_root='../../../../../../data/flickr/wavs/', 
+                meta_path='../../../../../../../../data/flickr/flickr8k_word_splits_validation.csv',
+                audio_root='../../../../../../../../data/flickr/wavs/', 
                 conversion_config=self.cfg.conversion_method,
                 stemming=self.cfg.stemming, 
                 lemmetise=self.cfg.lematise                
             )
         elif self.cfg['dataset'] == 'google_commands':
             self.train_dataset = GoogleCommandsWordClassification(
-                meta_path='../../../../../../data/google_commands/google_commands_word_splits_train.csv',
-                audio_root='../../../../../../data/google_commands/SpeechCommands/speech_commands_v0.02', 
+                meta_path='../../../../../../../../data/google_commands/google_commands_word_splits_train.csv',
+                audio_root='../../../../../../../../data/google_commands/SpeechCommands/speech_commands_v0.02', 
                 conversion_config=self.cfg.conversion_method,  
             )
 
             self.valiadation_dataset = GoogleCommandsWordClassification(
-                meta_path='../../../../../../data/google_commands/google_commands_word_splits_validation.csv',
-                audio_root='../../../../../../data/google_commands/SpeechCommands/speech_commands_v0.02', 
+                meta_path='../../../../../../../../data/google_commands/google_commands_word_splits_validation.csv',
+                audio_root='../../../../../../../../data/google_commands/SpeechCommands/speech_commands_v0.02', 
                 conversion_config=self.cfg.conversion_method,             
             )    
         elif self.cfg['dataset'] == 'google_commands_digit':
             self.train_dataset = GoogleCommandsWordClassification(
-                meta_path='../../../../../../data/google_commands/google_commands_word_splits_train.csv',
-                audio_root='../../../../../../data/google_commands/SpeechCommands/speech_commands_v0.02', 
+                meta_path='../../../../../../../../data/google_commands/google_commands_word_splits_train.csv',
+                audio_root='../../../../../../../../data/google_commands/SpeechCommands/speech_commands_v0.02', 
                 conversion_config=self.cfg.conversion_method,  
             )
 
             self.valiadation_dataset = GoogleCommandsWordClassification(
-                meta_path='../../../../../../data/google_commands/google_commands_word_splits_validation.csv',
-                audio_root='../../../../../../data/google_commands/SpeechCommands/speech_commands_v0.02', 
+                meta_path='../../../../../../../../data/google_commands/google_commands_word_splits_validation.csv',
+                audio_root='../../../../../../../../data/google_commands/SpeechCommands/speech_commands_v0.02', 
                 conversion_config=self.cfg.conversion_method,             
             )         
         else:
@@ -238,7 +238,7 @@ def main(cfg: DictConfig):
     callbacks = [checkpoint_callback, lr_monitor, earlystop_callback] if cfg.method=='maml' else [checkpoint_callback, earlystop_callback]
 
     trainer = pl.Trainer(
-        logger=wandb_logger,    
+        # logger=wandb_logger,    
         log_every_n_steps=2,   
         gpus=None if not torch.cuda.is_available() else -1,
         max_epochs=cfg.max_epochs,           

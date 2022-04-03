@@ -16,6 +16,7 @@ k_shot: 1
 augment: 'none'
 embedding_dim: 128
 return_features: False
+noise_labels: 'unkown'
 first_order: True
 
 secrets:
@@ -25,4 +26,4 @@ hydra:
   run:
     dir: ./ # we only run multiruns to ensure we seperate each result
   sweep:
-    dir: ./training_results/${dataset}/${method}/${encoder.name}/${conversion_method.name}/
+    dir: ./training_results_${noise_labels}_label/${dataset}/${method}/${encoder.name}/${conversion_method.name}/${n_way}_way/${k_shot}_shot/
