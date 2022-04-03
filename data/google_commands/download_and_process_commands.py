@@ -43,4 +43,3 @@ test_data = all_data[all_data['word'].isin(test_words)]
 
 training_data.to_csv('./google_commands_word_splits_commands.csv', index=False)
 val_data.to_csv('./google_commands_word_splits_digits.csv', index=False)
-test_data.to_csv('./google_commands_word_splits_test_commands.csv', index=False)
