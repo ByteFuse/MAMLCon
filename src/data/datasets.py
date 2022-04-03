@@ -60,7 +60,6 @@ class Flickr8kWordClassification(torch.utils.data.Dataset):
         else:
             audio = self.conversions[self.conversion_config['name']](audio_path, config=self.conversion_config)
         label = self.labels[idx]
-
         return audio, label
 
     def __len__(self):
@@ -72,6 +71,7 @@ class GoogleCommandsWordClassification(Flickr8kWordClassification):
         
         metadata = pd.read_csv(meta_path)
         self.audio_files = [os.path.join(audio_root, audio) for audio in tqdm(metadata.file, desc='Loading audio')]
+        self.words = metadata.word.values
         self.labels = LabelEncoder().fit_transform(metadata.word.values)
         self.indices_to_labels = {i: label for i, label in enumerate(self.labels)}
         self.create_labels_to_indices()

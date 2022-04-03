@@ -25,52 +25,64 @@ class WordData(pl.LightningDataModule):
  
     def __init__(self, config):
         super().__init__()
-        assert config['dataset'] in ['flickr8k', 'google_commands', 'fluent', 'google_commands_split'], 'Dataset not supported. Must be either flickr8k, google_commands, fluent'        
+        assert config['dataset'] in ['flickr8k', 'google_commands', 'fluent', 'google_commands_digit', 'google_commands_command'], 'Dataset not supported. Must be either flickr8k, google_commands, fluent'        
         self.cfg = config
 
     def setup(self, stage=None):
         if self.cfg['dataset'] == 'flickr8k':
             self.train_dataset = Flickr8kWordClassification(
-                meta_path='../../../../../../data/flickr/flickr8k_word_splits_train.csv',
-                audio_root='../../../../../../data/flickr/wavs/', 
+                meta_path='../../../../../../../../data/flickr/flickr8k_word_splits_train.csv',
+                audio_root='../../../../../../../../data/flickr/wavs/', 
                 conversion_config=self.cfg.conversion_method,
                 stemming=self.cfg.stemming, 
                 lemmetise=self.cfg.lematise     
             )
 
             self.valiadation_dataset = Flickr8kWordClassification(
-                meta_path='../../../../../../data/flickr/flickr8k_word_splits_validation.csv',
-                audio_root='../../../../../../data/flickr/wavs/', 
+                meta_path='../../../../../../../../data/flickr/flickr8k_word_splits_validation.csv',
+                audio_root='../../../../../../../../data/flickr/wavs/', 
                 conversion_config=self.cfg.conversion_method,
                 stemming=self.cfg.stemming, 
                 lemmetise=self.cfg.lematise                
             )
         elif self.cfg['dataset'] == 'google_commands':
             self.train_dataset = GoogleCommandsWordClassification(
-                meta_path='../../../../../../data/google_commands/google_commands_word_splits_train.csv',
-                audio_root='../../../../../../data/google_commands/SpeechCommands/speech_commands_v0.02', 
+                meta_path='../../../../../../../../data/google_commands/google_commands_word_splits_train.csv',
+                audio_root='../../../../../../../../data/google_commands/SpeechCommands/speech_commands_v0.02', 
                 conversion_config=self.cfg.conversion_method,  
             )
 
             self.valiadation_dataset = GoogleCommandsWordClassification(
-                meta_path='../../../../../../data/google_commands/google_commands_word_splits_validation.csv',
-                audio_root='../../../../../../data/google_commands/SpeechCommands/speech_commands_v0.02', 
+                meta_path='../../../../../../../../data/google_commands/google_commands_word_splits_validation.csv',
+                audio_root='../../../../../../../../data/google_commands/SpeechCommands/speech_commands_v0.02', 
                 conversion_config=self.cfg.conversion_method,             
             )    
         elif self.cfg['dataset'] == 'google_commands_digit':
             self.train_dataset = GoogleCommandsWordClassification(
-                meta_path='../../../../../../data/google_commands/google_commands_word_splits_train.csv',
-                audio_root='../../../../../../data/google_commands/SpeechCommands/speech_commands_v0.02', 
+                meta_path='../../../../../../../../data/google_commands/google_commands_word_splits_commands.csv',
+                audio_root='../../../../../../../../data/google_commands/SpeechCommands/speech_commands_v0.02', 
                 conversion_config=self.cfg.conversion_method,  
             )
 
             self.valiadation_dataset = GoogleCommandsWordClassification(
-                meta_path='../../../../../../data/google_commands/google_commands_word_splits_validation.csv',
-                audio_root='../../../../../../data/google_commands/SpeechCommands/speech_commands_v0.02', 
+                meta_path='../../../../../../../../data/google_commands/google_commands_word_splits_digits.csv',
+                audio_root='../../../../../../../../data/google_commands/SpeechCommands/speech_commands_v0.02', 
                 conversion_config=self.cfg.conversion_method,             
             )         
-        else:
-            pass #TODO: Add in other datasets
+        elif self.cfg['dataset'] == 'google_commands_commands':
+            self.train_dataset = GoogleCommandsWordClassification(
+                meta_path='../../../../../../../../data/google_commands/google_commands_word_splits_digits.csv',
+                audio_root='../../../../../../../../data/google_commands/SpeechCommands/speech_commands_v0.02', 
+                conversion_config=self.cfg.conversion_method,  
+            )
+
+            self.valiadation_dataset = GoogleCommandsWordClassification(
+                meta_path='../../../../../../../../data/google_commands/google_commands_word_splits_commands.csv',
+                audio_root='../../../../../../../../data/google_commands/SpeechCommands/speech_commands_v0.02', 
+                conversion_config=self.cfg.conversion_method,             
+            )
+        elif self.cfg['dataset'] == 'fluent':
+            raise NotImplementedError
 
         train_labels = torch.tensor(self.train_dataset.labels)
         validation_labels = torch.tensor(self.valiadation_dataset.labels)
@@ -241,7 +253,7 @@ def main(cfg: DictConfig):
         logger=wandb_logger,    
         log_every_n_steps=2,   
         gpus=None if not torch.cuda.is_available() else -1,
-        max_epochs=cfg.max_epochs,           
+        max_steps=cfg.max_steps,           
         deterministic=False, 
         precision=cfg.precision if cfg.method=='maml' else 32,
         profiler="simple",
