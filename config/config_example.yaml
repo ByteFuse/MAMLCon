@@ -3,7 +3,7 @@ defaults:
   - optim: adam
   - conversion_method: mfcc
 
-dataset: 'google_commands'
+dataset: 'google_commands_digit'
 stemming: True
 lematise: False
 batch_size: 1

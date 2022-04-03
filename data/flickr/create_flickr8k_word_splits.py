@@ -16,7 +16,7 @@ import librosa
 pl.seed_everything(42)
 
 def load_and_cut_and_save(row):
-    original_file = os.path.join('/home/rvdmerwe/Desktop/flickr8k_multimodal_few_shot/data/flickr_audio/wavs/',row['original_file'])
+    original_file = os.path.join('/Users/ruanvdmerwe/Desktop/flickr8k_multimodal_few_shot/data/flickr_audio/wavs',row['original_file'])
     start = row['start']
     duration = row['duration']
     new_loc = os.path.join('./wavs/', row['file'])
