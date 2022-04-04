@@ -158,13 +158,14 @@ class Reptile(GradientLearningBase):
 
 class ConMAML(GradientLearningBase):
     
-    def __init__(self, model, n_classes_start, n_class_additions, training_steps, loss_func, optim_config, k_shot):
+    def __init__(self, model, n_classes_start, n_class_additions, training_steps, loss_func, optim_config, k_shot, quick_adapt=True):
         super().__init__(None, None, None, optim_config, k_shot)
 
         self.n_classes_start = n_classes_start
         self.n_class_additions = n_class_additions
         self.training_steps = training_steps
         self.loss_func = loss_func
+        self.quick_adapt = quick_adapt
         self.model = l2l.algorithms.MAML(model, lr=optim_config['inner_learning_rate'], first_order=True, allow_nograd=True)
         self.configure_optimizers()
 
@@ -257,15 +258,17 @@ class ConMAML(GradientLearningBase):
             logging[f'step_{i+1}_inner_accuracy'] = self.calculate_accuracy(output)
 
         # train final model with all classes with ONE example
-        query_inputs, query_labels = torch.cat(query_inputs), torch.cat(query_labels)
-        train_indexes, test_indexes = self.return_adaption_and_query(query_labels)
 
-        output = learner(query_inputs[train_indexes], total_classes_present)
-        output['labels'] = query_labels[train_indexes]
-        quick_update_error = self.loss_func(output)
-        learner.adapt(quick_update_error)
-        quick_update_accuracy = self.calculate_accuracy(output)
-        logging[f'quik_update_inner_accuracy'] = quick_update_accuracy    
+        if self.quick_adapt:
+            query_inputs, query_labels = torch.cat(query_inputs), torch.cat(query_labels)
+            train_indexes, test_indexes = self.return_adaption_and_query(query_labels)
+
+            output = learner(query_inputs[train_indexes], total_classes_present)
+            output['labels'] = query_labels[train_indexes]
+            quick_update_error = self.loss_func(output)
+            learner.adapt(quick_update_error)
+            quick_update_accuracy = self.calculate_accuracy(output)
+            logging[f'quik_update_inner_accuracy'] = quick_update_accuracy    
 
         # measure performance over all classes in history
         output = learner(query_inputs[test_indexes], total_classes_present)

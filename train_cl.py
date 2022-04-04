@@ -203,6 +203,7 @@ def main(cfg: DictConfig):
             loss_func=loss_fn,
             optim_config=cfg.optim,
             k_shot=cfg.k_shot,
+            quick_adapt=cfg.quick_adapt
         )
     elif cfg.method=='reptile':
         raise NotImplementedError
