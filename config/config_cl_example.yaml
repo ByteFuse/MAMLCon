@@ -1,0 +1,29 @@
+defaults:
+  - encoder: 1d_cnn
+  - optim: adam
+  - conversion_method: mfcc
+
+dataset: 'google_commands_digit'
+stemming: True
+lematise: False
+batch_size: 2
+epoch_n_tasks: 1000
+max_epochs: 50
+precision: 16
+method: "maml"
+n_way: 5
+k_shot: 5
+embedding_dim: 256
+noise_labels: 'noise'
+train_update_steps: 20
+n_classes_start: 5
+n_class_additions: 5
+
+secrets:
+  wandb_key: ''
+
+hydra:
+  run:
+    dir: ./ # we only run multiruns to ensure we seperate each result
+  sweep:
+    dir: ./CL_training_results_${noise_labels}_label/${dataset}/${method}/${encoder.name}/${conversion_method.name}/${n_way}_way/${k_shot}_shot/

@@ -13,7 +13,7 @@ import torchaudio
 
 from src.models import WordClassificationAudio2DCnn, WordClassificationAudioCnnPool as WordClassificationAudioCnn, WordClassificationRnn
 from src.losses import ClassificationLoss
-from src.algorithms import VanillaMAML, Reptile
+from src.algorithms import ConMAML
 from src.data.datasets import Flickr8kWordClassification, GoogleCommandsWordClassification
 from src.data.samplers import SpokenWordTaskBatchSampler
 from src.utils import flatten_dict
@@ -176,22 +176,9 @@ class MetaModel(nn.Module):
 
         return {'logits':logits}
 
-@hydra.main(config_path="config", config_name="config")
+@hydra.main(config_path="config", config_name="config_cl")
 def main(cfg: DictConfig):
     pl.utilities.seed.seed_everything(42)
-
-    if cfg.augment == 'hard':
-        audio_augmentation = Compose([
-            torchaudio.transforms.TimeMasking(time_mask_param=5),
-            torchaudio.transforms.FrequencyMasking(freq_mask_param=2),
-        ])
-    elif cfg.augment == 'easy':
-        audio_augmentation = Compose([
-            torchaudio.transforms.TimeMasking(time_mask_param=5),
-            torchaudio.transforms.FrequencyMasking(freq_mask_param=1)
-        ])
-    elif cfg.augment == 'none':
-        audio_augmentation = None
 
     if cfg.encoder.name == '1d_cnn':	
         encoder = WordClassificationAudioCnn(cfg.embedding_dim, cfg.encoder.hidden_dim, input_channels=cfg.conversion_method.input_channels)
@@ -212,26 +199,17 @@ def main(cfg: DictConfig):
     data.setup()
 
     if cfg.method=='maml':
-        algorithm = VanillaMAML(
+        algorithm = ConMAML(
             model=model, 
-            train_update_steps=cfg.optim.inner_steps,
-            test_update_steps=cfg.optim.val_inner_steps,
+            train_update_steps=cfg.training_steps,
+            n_classes_start=cfg.n_classes_start,
+            n_class_additions=cfg.n_class_additions,
             loss_func=loss_fn,
             optim_config=cfg.optim,
             k_shot=cfg.k_shot,
-            first_order=cfg.first_order,
-            augmentation=audio_augmentation
         )
     elif cfg.method=='reptile':
-        algorithm = Reptile(
-            model=model, 
-            train_update_steps=cfg.optim.inner_steps,
-            test_update_steps=cfg.optim.val_inner_steps,
-            loss_func=loss_fn,
-            optim_config=cfg.optim,
-            k_shot=cfg.k_shot,
-            augmentation=audio_augmentation
-        )
+        raise NotImplementedError
 
     wandb.login(key=cfg.secrets.wandb_key)
     wandb_logger = WandbLogger(project='unimodal-isolated-few-shot-learning', config=flatten_dict(cfg))
