@@ -150,11 +150,10 @@ class WordData(pl.LightningDataModule):
 
 
 class MetaModel(nn.Module):
-    def __init__(self, encoder, embedding_dim, n_classes, start_n_classes=3):
+    def __init__(self, encoder, embedding_dim, n_classes):
         super().__init__()
 
         self.encoder = encoder
-        self.total_classes_present = start_n_classes
 
         classification_layer = nn.Sequential(
             nn.ReLU(),
@@ -162,11 +161,11 @@ class MetaModel(nn.Module):
         )
         self.classifiers = nn.ModuleList([classification_layer]*n_classes)
 
-    def forward(self, audio):
+    def forward(self, audio, total_classes_present):
         features = self.encoder(audio)
 
         layer_logits = []
-        for c_layer in range(self.total_classes_present):
+        for c_layer in range(total_classes_present):
             layer_logits.append(self.classifiers[c_layer](features))
 
         logits = torch.cat(layer_logits, dim=1)
@@ -189,16 +188,16 @@ def main(cfg: DictConfig):
             n_layers=cfg.encoder.n_layers, 
             learn_states=cfg.encoder.learn_states
           )
-    
+
     loss_fn = ClassificationLoss()
-    model = MetaModel(encoder, cfg.embedding_dim, cfg.n_way, return_features=cfg.return_features, noise_labels=cfg.noise_labels)
+    model = MetaModel(encoder, cfg.embedding_dim, cfg.n_way)
     data = WordData(cfg)
     data.setup()
 
     if cfg.method=='maml':
         algorithm = ConMAML(
             model=model, 
-            train_update_steps=cfg.training_steps,
+            training_steps=cfg.train_update_steps,
             n_classes_start=cfg.n_classes_start,
             n_class_additions=cfg.n_class_additions,
             loss_func=loss_fn,
@@ -209,7 +208,7 @@ def main(cfg: DictConfig):
         raise NotImplementedError
 
     wandb.login(key=cfg.secrets.wandb_key)
-    wandb_logger = WandbLogger(project='unimodal-isolated-few-shot-learning', config=flatten_dict(cfg))
+    wandb_logger = WandbLogger(project='unimodal-isolated-few-shot-continual-learning', config=flatten_dict(cfg))
     
     checkpoint_callback = ModelCheckpoint(
         dirpath='checkpoints', 
