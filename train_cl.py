@@ -129,9 +129,9 @@ class WordData(pl.LightningDataModule):
             self.train_dataset,
             batch_sampler=self.train_sampler, 
             collate_fn=self.train_sampler.get_collate_fn,
-            num_workers=16,
-            persistent_workers=True,
-            pin_memory=True
+            # num_workers=16,
+            # persistent_workers=True,
+            # pin_memory=True
         )
 
         return train_loader
@@ -141,9 +141,9 @@ class WordData(pl.LightningDataModule):
             self.valiadation_dataset,
             batch_sampler=self.valiadation_sampler, 
             collate_fn=self.valiadation_sampler.get_collate_fn, 
-            num_workers=16,
-            persistent_workers=True,
-            pin_memory=True
+            # num_workers=16,
+            # persistent_workers=True,
+            # pin_memory=True
         )
 
         return val_loader
@@ -155,21 +155,24 @@ class MetaModel(nn.Module):
 
         self.encoder = encoder
 
-        classification_layer = nn.Sequential(
-            nn.ReLU(),
-            nn.Linear(embedding_dim, 1)
-        )
-        self.classifiers = nn.ModuleList([classification_layer]*n_classes)
+        def return_classification_layer(embedding_dim):
+            layer = nn.Linear(embedding_dim, 1)
+            torch.nn.init.xavier_uniform(layer.weight, )
+            layer = nn.Sequential(
+                nn.ReLU(),
+                layer
+            )
+            return layer
+
+        layers = [return_classification_layer(embedding_dim) for _ in range(n_classes)]
+        self.classifiers = nn.ModuleList(layers)
 
     def forward(self, audio, total_classes_present):
         features = self.encoder(audio)
-
         layer_logits = []
         for c_layer in range(total_classes_present):
             layer_logits.append(self.classifiers[c_layer](features))
-
         logits = torch.cat(layer_logits, dim=1)
-
         return {'logits':logits}
 
 @hydra.main(config_path="config", config_name="config_cl")

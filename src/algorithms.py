@@ -24,7 +24,7 @@ class GradientLearningBase(pl.LightningModule):
         output = self.meta_learn(batch)
         
         for key, value in output.items():
-            self.log(key, value, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+            self.log("train_"+key, value, on_step=True, on_epoch=True, prog_bar=True, logger=True)
 
         return output['query_error']
 
@@ -34,7 +34,7 @@ class GradientLearningBase(pl.LightningModule):
         output = self.meta_learn(batch)
         
         for key,value in output.items():
-            self.log(key, value, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+            self.log("validation_"+key, value, on_step=True, on_epoch=True, prog_bar=True, logger=True)
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=self.optim_config['outer_learning_rate'])
@@ -268,7 +268,7 @@ class ConMAML(GradientLearningBase):
             quick_update_error = self.loss_func(output)
             learner.adapt(quick_update_error)
             quick_update_accuracy = self.calculate_accuracy(output)
-            logging[f'quik_update_inner_accuracy'] = quick_update_accuracy    
+            logging[f'quick_update_inner_accuracy'] = quick_update_accuracy    
 
         # measure performance over all classes in history
         output = learner(query_inputs[test_indexes], total_classes_present)
@@ -277,5 +277,4 @@ class ConMAML(GradientLearningBase):
         query_accuracy = self.calculate_accuracy(output)
         logging['query_error'] = query_error
         logging['query_accuracy'] = query_accuracy
-
         return logging
