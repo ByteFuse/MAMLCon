@@ -150,29 +150,26 @@ class WordData(pl.LightningDataModule):
 
 
 class MetaModel(nn.Module):
-    def __init__(self, encoder, embedding_dim, n_classes, return_features=False, noise_labels=None):
+    def __init__(self, encoder, embedding_dim, n_classes, start_n_classes=3):
         super().__init__()
 
-        if noise_labels == 'noise' or noise_labels == 'unknown':
-            extra_classes = 1
-        elif noise_labels == 'both':
-            extra_classes = 2
-        else:
-            extra_classes = 0
-
         self.encoder = encoder
-        self.classification_layer = nn.Sequential(
+        self.total_classes_present = start_n_classes
+
+        classification_layer = nn.Sequential(
             nn.ReLU(),
-            nn.Linear(embedding_dim, n_classes+extra_classes)
+            nn.Linear(embedding_dim, 1)
         )
-        self.return_features = return_features
+        self.classifiers = nn.ModuleList([classification_layer]*n_classes)
 
     def forward(self, audio):
         features = self.encoder(audio)
-        logits = self.classification_layer(features)
 
-        if self.return_features:
-            return {"features":features, "logits":logits}
+        layer_logits = []
+        for c_layer in range(self.total_classes_present):
+            layer_logits.append(self.classifiers[c_layer](features))
+
+        logits = torch.cat(layer_logits, dim=1)
 
         return {'logits':logits}
 

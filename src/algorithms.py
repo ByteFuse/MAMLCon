@@ -224,6 +224,8 @@ class ConMAML(GradientLearningBase):
         query_inputs.append(iteration_query_input)
         query_labels.append(iteration_query_labels)
 
+        self.learner.total_classes_present = len(class_batches[0])
+
         # train initial model with intial classes
         for step in range(self.training_steps):
             output = learner(iteration_support_input)
@@ -239,6 +241,9 @@ class ConMAML(GradientLearningBase):
             iteration_support_input, iteration_support_labels, iteration_query_input, iteration_query_labels = self.split_batch(iteration_inputs, iteration_labels)
             query_inputs.append(iteration_query_input)
             query_labels.append(iteration_query_labels)
+
+            # update amount of label that can be predicted
+            self.learner.total_classes_present = len(class_batches[i])
 
             # train additional classes
             for step in range(self.training_steps):
