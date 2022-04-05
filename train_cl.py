@@ -223,7 +223,7 @@ def main(cfg: DictConfig):
         save_last=True
     )
     lr_monitor = LearningRateMonitor(logging_interval='step')
-    earlystop_callback = EarlyStopping(monitor='validation_loss', patience=cfg.optim.scheduler_step, mode='min')
+    earlystop_callback = EarlyStopping(monitor='validation_query_accuracy', patience=3, mode='max')
 
     callbacks = [checkpoint_callback, lr_monitor, earlystop_callback] if cfg.method=='maml' else [checkpoint_callback, earlystop_callback]
 
