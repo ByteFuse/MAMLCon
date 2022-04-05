@@ -129,9 +129,9 @@ class WordData(pl.LightningDataModule):
             self.train_dataset,
             batch_sampler=self.train_sampler, 
             collate_fn=self.train_sampler.get_collate_fn,
-            # num_workers=16,
-            # persistent_workers=True,
-            # pin_memory=True
+            num_workers=8,
+            persistent_workers=True,
+            pin_memory=True
         )
 
         return train_loader
@@ -141,9 +141,9 @@ class WordData(pl.LightningDataModule):
             self.valiadation_dataset,
             batch_sampler=self.valiadation_sampler, 
             collate_fn=self.valiadation_sampler.get_collate_fn, 
-            # num_workers=16,
-            # persistent_workers=True,
-            # pin_memory=True
+            num_workers=8,
+            persistent_workers=True,
+            pin_memory=True
         )
 
         return val_loader
@@ -216,9 +216,9 @@ def main(cfg: DictConfig):
     
     checkpoint_callback = ModelCheckpoint(
         dirpath='checkpoints', 
-        filename='{epoch}-{validation_loss:.2f}', 
+        filename='{epoch}-{validation_query_accuracy:.2f}', 
         save_top_k=5, 
-        monitor='validation_loss',
+        monitor='validation_query_error',
         save_weights_only=False,
         save_last=True
     )
