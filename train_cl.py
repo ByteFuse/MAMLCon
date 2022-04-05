@@ -222,10 +222,7 @@ def main(cfg: DictConfig):
         save_weights_only=False,
         save_last=True
     )
-    lr_monitor = LearningRateMonitor(logging_interval='step')
-    earlystop_callback = EarlyStopping(monitor='validation_query_accuracy', patience=3, mode='max')
-
-    callbacks = [checkpoint_callback, lr_monitor, earlystop_callback] if cfg.method=='maml' else [checkpoint_callback, earlystop_callback]
+    callbacks = [checkpoint_callback]
 
     trainer = pl.Trainer(
         logger=wandb_logger,    
