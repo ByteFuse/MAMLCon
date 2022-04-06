@@ -201,6 +201,7 @@ def main(cfg: DictConfig):
         algorithm = ConMAML(
             model=model, 
             training_steps=cfg.train_update_steps,
+            intial_training_steps=cfg.initial_training_steps,
             n_classes_start=cfg.n_classes_start,
             n_class_additions=cfg.n_class_additions,
             loss_func=loss_fn,
