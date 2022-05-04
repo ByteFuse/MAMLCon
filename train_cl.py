@@ -129,9 +129,9 @@ class WordData(pl.LightningDataModule):
             self.train_dataset,
             batch_sampler=self.train_sampler, 
             collate_fn=self.train_sampler.get_collate_fn,
-            num_workers=8,
-            persistent_workers=True,
-            pin_memory=True
+            # num_workers=8,
+            # persistent_workers=True,
+            # pin_memory=True
         )
 
         return train_loader
@@ -141,9 +141,9 @@ class WordData(pl.LightningDataModule):
             self.valiadation_dataset,
             batch_sampler=self.valiadation_sampler, 
             collate_fn=self.valiadation_sampler.get_collate_fn, 
-            num_workers=8,
-            persistent_workers=True,
-            pin_memory=True
+            # num_workers=8,
+            # persistent_workers=True,
+            # pin_memory=True
         )
 
         return val_loader
@@ -225,7 +225,7 @@ def main(cfg: DictConfig):
     callbacks = [checkpoint_callback]
 
     trainer = pl.Trainer(
-        logger=wandb_logger,    
+        # logger=wandb_logger,    
         log_every_n_steps=2,   
         gpus=None if not torch.cuda.is_available() else -1,
         max_steps=cfg.max_steps,           

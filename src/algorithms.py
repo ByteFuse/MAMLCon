@@ -218,7 +218,7 @@ class ConMAML(GradientLearningBase):
 
         # create new continual learning tasks
         class_batches = self.return_label_batches(labels)
-
+        print(class_batches)
         # final measure of accuracy
         query_inputs, query_labels = [], []
 
@@ -230,7 +230,7 @@ class ConMAML(GradientLearningBase):
         query_labels.append(iteration_query_labels)
 
         total_classes_present = len(class_batches[0])
-
+        
         # train initial model with intial classes
         for step in range(self.training_steps):
             output = learner(iteration_support_input, total_classes_present)
@@ -277,4 +277,5 @@ class ConMAML(GradientLearningBase):
         query_accuracy = self.calculate_accuracy(output)
         logging['query_error'] = query_error
         logging['query_accuracy'] = query_accuracy
+        print(output)
         return logging
