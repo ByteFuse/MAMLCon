@@ -129,9 +129,9 @@ class WordData(pl.LightningDataModule):
             self.train_dataset,
             batch_sampler=self.train_sampler, 
             collate_fn=self.train_sampler.get_collate_fn,
-            # num_workers=8,
-            # persistent_workers=True,
-            # pin_memory=True
+            num_workers=16,
+            persistent_workers=True,
+            pin_memory=True
         )
 
         return train_loader
@@ -141,9 +141,9 @@ class WordData(pl.LightningDataModule):
             self.valiadation_dataset,
             batch_sampler=self.valiadation_sampler, 
             collate_fn=self.valiadation_sampler.get_collate_fn, 
-            # num_workers=8,
-            # persistent_workers=True,
-            # pin_memory=True
+            num_workers=16,
+            persistent_workers=True,
+            pin_memory=True
         )
 
         return val_loader
@@ -201,6 +201,7 @@ def main(cfg: DictConfig):
         algorithm = ConMAML(
             model=model, 
             training_steps=cfg.train_update_steps,
+            intial_training_steps=cfg.initial_training_steps,
             n_classes_start=cfg.n_classes_start,
             n_class_additions=cfg.n_class_additions,
             loss_func=loss_fn,

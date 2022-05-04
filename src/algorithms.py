@@ -158,12 +158,13 @@ class Reptile(GradientLearningBase):
 
 class ConMAML(GradientLearningBase):
     
-    def __init__(self, model, n_classes_start, n_class_additions, training_steps, loss_func, optim_config, k_shot, quick_adapt=True):
+    def __init__(self, model, n_classes_start, n_class_additions, training_steps, intial_training_steps, loss_func, optim_config, k_shot, quick_adapt=True):
         super().__init__(None, None, None, optim_config, k_shot)
 
         self.n_classes_start = n_classes_start
         self.n_class_additions = n_class_additions
         self.training_steps = training_steps
+        self.initial_training_steps = intial_training_steps
         self.loss_func = loss_func
         self.quick_adapt = quick_adapt
         self.model = l2l.algorithms.MAML(model, lr=optim_config['inner_learning_rate'], first_order=True, allow_nograd=True)
@@ -218,7 +219,6 @@ class ConMAML(GradientLearningBase):
 
         # create new continual learning tasks
         class_batches = self.return_label_batches(labels)
-        print(class_batches)
         # final measure of accuracy
         query_inputs, query_labels = [], []
 
@@ -232,7 +232,7 @@ class ConMAML(GradientLearningBase):
         total_classes_present = len(class_batches[0])
         
         # train initial model with intial classes
-        for step in range(self.training_steps):
+        for step in range(self.initial_training_steps):
             output = learner(iteration_support_input, total_classes_present)
             output['labels'] = iteration_support_labels
             support_error = self.loss_func(output)
@@ -277,5 +277,4 @@ class ConMAML(GradientLearningBase):
         query_accuracy = self.calculate_accuracy(output)
         logging['query_error'] = query_error
         logging['query_accuracy'] = query_accuracy
-        print(output)
         return logging
