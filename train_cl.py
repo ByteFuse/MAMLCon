@@ -129,7 +129,7 @@ class WordData(pl.LightningDataModule):
             self.train_dataset,
             batch_sampler=self.train_sampler, 
             collate_fn=self.train_sampler.get_collate_fn,
-            num_workers=8,
+            num_workers=16,
             persistent_workers=True,
             pin_memory=True
         )
@@ -141,7 +141,7 @@ class WordData(pl.LightningDataModule):
             self.valiadation_dataset,
             batch_sampler=self.valiadation_sampler, 
             collate_fn=self.valiadation_sampler.get_collate_fn, 
-            num_workers=8,
+            num_workers=16,
             persistent_workers=True,
             pin_memory=True
         )
