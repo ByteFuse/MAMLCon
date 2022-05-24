@@ -1,19 +1,18 @@
+import os
 import hydra
 from omegaconf import DictConfig
 import wandb
 
 import pytorch_lightning as pl
 from pytorch_lightning.loggers import WandbLogger
-from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping, LearningRateMonitor
+from pytorch_lightning.callbacks import ModelCheckpoint
 
 import torch
 import torch.nn as nn
-from torchvision.transforms import Compose
-import torchaudio
 
 from src.models import WordClassificationAudio2DCnn, WordClassificationAudioCnnPool as WordClassificationAudioCnn, WordClassificationRnn
 from src.losses import ClassificationLoss
-from src.algorithms import VanillaMAML, Reptile
+from src.algorithms import FSCL, OML
 from src.data.datasets import Flickr8kWordClassification, GoogleCommandsWordClassification
 from src.data.samplers import SpokenWordTaskBatchSampler
 from src.utils import flatten_dict
@@ -148,51 +147,57 @@ class WordData(pl.LightningDataModule):
 
         return val_loader
 
-
-class MetaModel(nn.Module):
-    def __init__(self, encoder, embedding_dim, n_classes, return_features=False, noise_labels=None):
+class FSCLModel(nn.Module):
+    def __init__(self, encoder, embedding_dim, n_classes):
         super().__init__()
 
-        if noise_labels == 'noise' or noise_labels == 'unknown':
-            extra_classes = 1
-        elif noise_labels == 'both':
-            extra_classes = 2
-        else:
-            extra_classes = 0
-
         self.encoder = encoder
-        self.classification_layer = nn.Sequential(
-            nn.ReLU(),
-            nn.Linear(embedding_dim, n_classes+extra_classes)
-        )
-        self.return_features = return_features
 
-    def forward(self, audio):
+        def return_classification_layer(embedding_dim):
+            layer = nn.Linear(embedding_dim, 1)
+            torch.nn.init.xavier_uniform(layer.weight, )
+            layer = nn.Sequential(
+                nn.ReLU(),
+                layer
+            )
+            return layer
+
+        layers = [return_classification_layer(embedding_dim) for _ in range(n_classes)]
+        self.classifiers = nn.ModuleList(layers)
+
+    def forward(self, audio, total_classes_present):
         features = self.encoder(audio)
-        logits = self.classification_layer(features)
-
-        if self.return_features:
-            return {"features":features, "logits":logits}
-
+        layer_logits = []
+        for c_layer in range(total_classes_present):
+            layer_logits.append(self.classifiers[c_layer](features))
+        logits = torch.cat(layer_logits, dim=1)
         return {'logits':logits}
 
-@hydra.main(config_path="config", config_name="config")
+class OMLModel(nn.Module):
+    def __init__(self, encoder, embedding_dim, n_classes):
+        super().__init__()
+
+        self.encoder = encoder
+
+        clasifier_layer = nn.Linear(embedding_dim, n_classes)
+        torch.nn.init.xavier_uniform(clasifier_layer.weight)   
+        self.classifier = nn.Sequential(nn.ReLU(), clasifier_layer)
+
+    def forward(self, audio, inner_loop=False):
+        if inner_loop:
+            with torch.no_grad():
+                features = self.encoder(audio)
+        else:
+            features = self.encoder(audio)
+
+        logits = self.classifier(features)
+        return {'logits':logits}
+
+
+@hydra.main(config_path="config", config_name="config_cl")
 def main(cfg: DictConfig):
     pl.utilities.seed.seed_everything(42)
-
-    if cfg.augment == 'hard':
-        audio_augmentation = Compose([
-            torchaudio.transforms.TimeMasking(time_mask_param=5),
-            torchaudio.transforms.FrequencyMasking(freq_mask_param=2),
-        ])
-    elif cfg.augment == 'easy':
-        audio_augmentation = Compose([
-            torchaudio.transforms.TimeMasking(time_mask_param=5),
-            torchaudio.transforms.FrequencyMasking(freq_mask_param=1)
-        ])
-    elif cfg.augment == 'none':
-        audio_augmentation = None
-
+    print(os.getcwd())
     if cfg.encoder.name == '1d_cnn':	
         encoder = WordClassificationAudioCnn(cfg.embedding_dim, cfg.encoder.hidden_dim, input_channels=cfg.conversion_method.input_channels)
     elif cfg.encoder.name == '2d_cnn':
@@ -205,49 +210,50 @@ def main(cfg: DictConfig):
             n_layers=cfg.encoder.n_layers, 
             learn_states=cfg.encoder.learn_states
           )
-    
+
     loss_fn = ClassificationLoss()
-    model = MetaModel(encoder, cfg.embedding_dim, cfg.n_way, return_features=cfg.return_features, noise_labels=cfg.noise_labels)
     data = WordData(cfg)
     data.setup()
 
-    if cfg.method=='maml':
-        algorithm = VanillaMAML(
+    if cfg.method=='maml' and cfg.algorithm=='FSCL':
+        model = FSCLModel(encoder, cfg.embedding_dim, cfg.n_way)
+        algorithm = FSCL(
             model=model, 
-            train_update_steps=cfg.optim.inner_steps,
-            test_update_steps=cfg.optim.val_inner_steps,
+            training_steps=cfg.train_update_steps,
+            intial_training_steps=cfg.initial_training_steps,
+            n_classes_start=cfg.n_classes_start,
+            n_class_additions=cfg.n_class_additions,
             loss_func=loss_fn,
             optim_config=cfg.optim,
             k_shot=cfg.k_shot,
-            first_order=cfg.first_order,
-            augmentation=audio_augmentation
+            quick_adapt=cfg.quick_adapt
+        )
+    if cfg.method=='maml' and cfg.algorithm=='OML':
+        model = OMLModel(encoder, cfg.embedding_dim, cfg.n_way)
+        algorithm = OML(
+            model=model, 
+            training_steps=cfg.train_update_steps,
+            n_classes_start=cfg.n_classes_start,
+            n_class_additions=cfg.n_class_additions,
+            loss_func=loss_fn,
+            optim_config=cfg.optim,
+            k_shot=cfg.k_shot,
         )
     elif cfg.method=='reptile':
-        algorithm = Reptile(
-            model=model, 
-            train_update_steps=cfg.optim.inner_steps,
-            test_update_steps=cfg.optim.val_inner_steps,
-            loss_func=loss_fn,
-            optim_config=cfg.optim,
-            k_shot=cfg.k_shot,
-            augmentation=audio_augmentation
-        )
+        raise NotImplementedError
 
     wandb.login(key=cfg.secrets.wandb_key)
-    wandb_logger = WandbLogger(project='unimodal-isolated-few-shot-learning', config=flatten_dict(cfg))
+    wandb_logger = WandbLogger(project='unimodal-isolated-few-shot-continual-learning', config=flatten_dict(cfg), entity='lambda-ai')
     
     checkpoint_callback = ModelCheckpoint(
         dirpath='checkpoints', 
-        filename='{epoch}-{validation_loss:.2f}', 
+        filename='{epoch}-{validation_query_accuracy:.2f}', 
         save_top_k=5, 
-        monitor='validation_loss',
+        monitor='validation_query_error',
         save_weights_only=False,
         save_last=True
     )
-    lr_monitor = LearningRateMonitor(logging_interval='step')
-    earlystop_callback = EarlyStopping(monitor='validation_loss', patience=cfg.optim.scheduler_step, mode='min')
-
-    callbacks = [checkpoint_callback, lr_monitor, earlystop_callback] if cfg.method=='maml' else [checkpoint_callback, earlystop_callback]
+    callbacks = [checkpoint_callback]
 
     trainer = pl.Trainer(
         logger=wandb_logger,    

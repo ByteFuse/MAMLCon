@@ -1,0 +1,32 @@
+defaults:
+  - encoder: 2d_cnn
+  - optim: adam
+  - conversion_method: mfcc
+
+dataset: 'flickr8k'
+stemming: True
+lematise: False
+batch_size: 2
+epoch_n_tasks: 1000
+max_steps: 25000
+precision: 16
+method: "maml"
+algorithm: "FSCL"
+n_way: 5
+k_shot: 5
+embedding_dim: 256
+noise_labels: 'none'
+train_update_steps: 5
+initial_training_steps: 30
+n_classes_start: 2
+n_class_additions: 1
+quick_adapt: True
+
+secrets:
+  wandb_key: ''
+
+hydra:
+  run:
+    dir: ./
+  sweep:
+    dir: ./CL_training_results_${noise_labels}_label/${dataset}/${method}/${algorithm}/${encoder.name}/${conversion_method.name}/${n_way}_way/${k_shot}_shot/

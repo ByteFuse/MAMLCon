@@ -130,6 +130,8 @@ dmypy.json
 
 # hydra config with secrets
 config.yaml
+config_fs.yaml
+config_cl.yaml
 
 # mac shit 
 .DS_Store
