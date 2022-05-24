@@ -1,5 +1,4 @@
 from copy import deepcopy
-from tkinter import N
 
 import learn2learn as l2l
 import pytorch_lightning as pl

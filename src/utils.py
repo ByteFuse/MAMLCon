@@ -17,4 +17,3 @@ def flatten_dict(d: MutableMapping, parent_key: str = '', sep: str = '.'):
 
 def get_device():
     return torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
-    # return torch.device('cpu')

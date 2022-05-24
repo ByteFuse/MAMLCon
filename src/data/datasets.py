@@ -1,5 +1,4 @@
 import os
-from tkinter import Label
 from tqdm import tqdm
 
 import numpy as np
