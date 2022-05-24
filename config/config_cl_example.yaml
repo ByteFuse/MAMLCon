@@ -11,6 +11,7 @@ epoch_n_tasks: 1000
 max_steps: 25000
 precision: 16
 method: "maml"
+algorithm: "FSCL"
 n_way: 5
 k_shot: 5
 embedding_dim: 256

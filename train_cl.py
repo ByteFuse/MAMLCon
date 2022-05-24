@@ -11,7 +11,7 @@ import torch.nn as nn
 
 from src.models import WordClassificationAudio2DCnn, WordClassificationAudioCnnPool as WordClassificationAudioCnn, WordClassificationRnn
 from src.losses import ClassificationLoss
-from src.algorithms import ConMAML
+from src.algorithms import FSCL, OML
 from src.data.datasets import Flickr8kWordClassification, GoogleCommandsWordClassification
 from src.data.samplers import SpokenWordTaskBatchSampler
 from src.utils import flatten_dict
@@ -146,7 +146,6 @@ class WordData(pl.LightningDataModule):
 
         return val_loader
 
-
 class FSCLModel(nn.Module):
     def __init__(self, encoder, embedding_dim, n_classes):
         super().__init__()
@@ -173,7 +172,6 @@ class FSCLModel(nn.Module):
         logits = torch.cat(layer_logits, dim=1)
         return {'logits':logits}
 
-
 class OMLModel(nn.Module):
     def __init__(self, encoder, embedding_dim, n_classes):
         super().__init__()
@@ -195,7 +193,6 @@ class OMLModel(nn.Module):
         return {'logits':logits}
 
 
-
 @hydra.main(config_path="config", config_name="config_cl")
 def main(cfg: DictConfig):
     pl.utilities.seed.seed_everything(42)
@@ -214,12 +211,12 @@ def main(cfg: DictConfig):
           )
 
     loss_fn = ClassificationLoss()
-    model = FSCLModel(encoder, cfg.embedding_dim, cfg.n_way)
     data = WordData(cfg)
     data.setup()
 
-    if cfg.method=='maml':
-        algorithm = ConMAML(
+    if cfg.method=='maml' and cfg.algorithm=='FSCL':
+        model = FSCLModel(encoder, cfg.embedding_dim, cfg.n_way)
+        algorithm = FSCL(
             model=model, 
             training_steps=cfg.train_update_steps,
             intial_training_steps=cfg.initial_training_steps,
@@ -229,6 +226,17 @@ def main(cfg: DictConfig):
             optim_config=cfg.optim,
             k_shot=cfg.k_shot,
             quick_adapt=cfg.quick_adapt
+        )
+    if cfg.method=='maml' and cfg.algorithm=='OML':
+        model = OMLModel(encoder, cfg.embedding_dim, cfg.n_way)
+        algorithm = OML(
+            model=model, 
+            training_steps=cfg.train_update_steps,
+            n_classes_start=cfg.n_classes_start,
+            n_class_additions=cfg.n_class_additions,
+            loss_func=loss_fn,
+            optim_config=cfg.optim,
+            k_shot=cfg.k_shot,
         )
     elif cfg.method=='reptile':
         raise NotImplementedError

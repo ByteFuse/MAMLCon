@@ -186,7 +186,7 @@ class Reptile(GradientLearningBase):
 
 class FSCL(GradientLearningBase):
     
-    def __init__(self, model, n_classes_start, n_class_additions, training_steps, intial_training_steps, loss_func, optim_config, k_shot, quick_adapt=True):
+    def __init__(self, model, n_classes_start, n_class_additions, training_steps, intial_training_steps, loss_func, optim_config, k_shot):
         super().__init__(None, None, None, optim_config, k_shot)
 
         self.n_classes_start = n_classes_start
@@ -194,7 +194,6 @@ class FSCL(GradientLearningBase):
         self.training_steps = training_steps
         self.initial_training_steps = intial_training_steps
         self.loss_func = loss_func
-        self.quick_adapt = quick_adapt
         self.model = l2l.algorithms.MAML(model, lr=optim_config['inner_learning_rate'], first_order=True, allow_nograd=True)
         self.configure_optimizers()
 
@@ -286,15 +285,13 @@ class FSCL(GradientLearningBase):
 
 class OML(GradientLearningBase):
     
-    def __init__(self, model, n_classes_start, n_class_additions, training_steps, intial_training_steps, loss_func, optim_config, k_shot, quick_adapt=True):
+    def __init__(self, model, n_classes_start, n_class_additions, training_steps, loss_func, optim_config, k_shot):
         super().__init__(None, None, None, optim_config, k_shot)
 
         self.n_classes_start = n_classes_start
         self.n_class_additions = n_class_additions
         self.training_steps = training_steps
-        self.initial_training_steps = intial_training_steps
         self.loss_func = loss_func
-        self.quick_adapt = quick_adapt
         self.model = l2l.algorithms.MAML(model, lr=optim_config['inner_learning_rate'], first_order=True, allow_nograd=True)
         self.configure_optimizers()
 
@@ -306,16 +303,6 @@ class OML(GradientLearningBase):
             classes.append(unique_classes[self.n_classes_start+self.n_class_additions*(i):self.n_classes_start+self.n_class_additions*(i+1)])
         
         return classes
-
-    @staticmethod
-    def return_indexes(batch_labels, classes):
-        batch_indexes = []
-        for i in range(len(classes)):
-            batch_indexes.append(torch.where(batch_labels==classes[i])[0])
-
-        batch_indexes = torch.concat(batch_indexes).tolist()
-        batch_indexes = batch_indexes[::2] + batch_indexes[1::2]
-        return torch.tensor(batch_indexes)
 
     def meta_learn(self, batch):
         # used to measure metrics
