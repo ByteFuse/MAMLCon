@@ -29,4 +29,4 @@ hydra:
   run:
     dir: ./
   sweep:
-    dir: ./CL_training_results_${noise_labels}_label/${dataset}/${method}/${encoder.name}/${conversion_method.name}/${n_way}_way/${k_shot}_shot/
+    dir: ./CL_training_results_${noise_labels}_label/${dataset}/${method}/${algorithm}/${encoder.name}/${conversion_method.name}/${n_way}_way/${k_shot}_shot/
