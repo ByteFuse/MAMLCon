@@ -1,2 +1,1 @@
-# speech-fewshot-cl
-Few shot classification of words with continual learnign thrown in
+# Quick Adapt Few Shot Continual Meta Learning
