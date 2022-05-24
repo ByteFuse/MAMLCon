@@ -7,6 +7,34 @@ import pytorch_lightning as pl
 import torch
 import torch.nn.functional as F
 
+
+def return_random_labels(batch_labels):
+    '''
+    Returns the data labels as randomly assigned intigers
+    '''
+
+    unique_labels = torch.unique(batch_labels, sorted=True, return_inverse=False)
+    random_labels = unique_labels[torch.randperm(unique_labels.size(0))]
+    converter = {i:random_labels[i] for i in range(random_labels.size(0))}
+
+    for i in range(len(batch_labels)):
+        batch_labels[i] = converter[int(batch_labels[i])]
+
+    return batch_labels
+
+def return_indexes(batch_labels, classes):
+    '''
+    Return the indexes in the batch where the labels are equal to the classes
+    '''
+
+    batch_indexes = []
+    for i in range(len(classes)):
+        batch_indexes.append(torch.where(batch_labels==classes[i])[0])
+
+    batch_indexes = torch.concat(batch_indexes).tolist()
+    batch_indexes = batch_indexes[::2] + batch_indexes[1::2]
+    return torch.tensor(batch_indexes)
+
 class GradientLearningBase(pl.LightningModule):
 
     """Inspired from the learn2lean PL vision example."""
@@ -156,7 +184,7 @@ class Reptile(GradientLearningBase):
        
         return optimizer
 
-class ConMAML(GradientLearningBase):
+class FSCL(GradientLearningBase):
     
     def __init__(self, model, n_classes_start, n_class_additions, training_steps, intial_training_steps, loss_func, optim_config, k_shot, quick_adapt=True):
         super().__init__(None, None, None, optim_config, k_shot)
@@ -179,29 +207,8 @@ class ConMAML(GradientLearningBase):
         
         return classes
 
-    @staticmethod
-    def return_indexes(batch_labels, classes):
-        batch_indexes = []
-        for i in range(len(classes)):
-            batch_indexes.append(torch.where(batch_labels==classes[i])[0])
-
-        batch_indexes = torch.concat(batch_indexes).tolist()
-        batch_indexes = batch_indexes[::2] + batch_indexes[1::2]
-        return torch.tensor(batch_indexes)
-
-    @staticmethod
-    def return_random_labels(batch_labels):
-        unique_labels = torch.unique(batch_labels, sorted=True, return_inverse=False)
-        random_labels = unique_labels[torch.randperm(unique_labels.size(0))]
-        converter = {i:random_labels[i] for i in range(random_labels.size(0))}
-
-        for i in range(len(batch_labels)):
-            batch_labels[i] = converter[int(batch_labels[i])]
-
-        return batch_labels
-
     def return_adaption_and_query(self, labels):
-        indexes = ConMAML.return_indexes(labels, torch.unique(labels, return_inverse=False))
+        indexes = FSCL.return_indexes(labels, torch.unique(labels, return_inverse=False))
         first_occurence = indexes[::self.k_shot]
         other_occurences = torch.tensor([i for i in range(len(indexes)) if i%self.k_shot!=0])
         return first_occurence, other_occurences
@@ -211,7 +218,7 @@ class ConMAML(GradientLearningBase):
         logging = {}
         # to accumulate tasks change accumaluate gradients of trainer
         _inputs, labels = batch
-        labels = ConMAML.return_random_labels(labels) # ensuring words are not always assigned as first class
+        labels = FSCL.return_random_labels(labels) # ensuring words are not always assigned as first class
 
         # initiliase model that will be trained
         learner = self.model.clone()
@@ -223,7 +230,7 @@ class ConMAML(GradientLearningBase):
         query_inputs, query_labels = [], []
 
         # train on first iteration of classes
-        iteration_indexes = ConMAML.return_indexes(labels, class_batches[0])
+        iteration_indexes = FSCL.return_indexes(labels, class_batches[0])
         iteration_inputs, iteration_labels = _inputs[iteration_indexes], labels[iteration_indexes]
         iteration_support_input, iteration_support_labels, iteration_query_input, iteration_query_labels = self.split_batch(iteration_inputs, iteration_labels)
         query_inputs.append(iteration_query_input)
@@ -258,21 +265,96 @@ class ConMAML(GradientLearningBase):
             logging[f'step_{i+1}_inner_accuracy'] = self.calculate_accuracy(output)
 
         # train final model with all classes with ONE example
-
-        if self.quick_adapt:
-            query_inputs, query_labels = torch.cat(query_inputs), torch.cat(query_labels)
-            train_indexes, test_indexes = self.return_adaption_and_query(query_labels)
-
-            output = learner(query_inputs[train_indexes], total_classes_present)
-            output['labels'] = query_labels[train_indexes]
-            quick_update_error = self.loss_func(output)
-            learner.adapt(quick_update_error)
-            quick_update_accuracy = self.calculate_accuracy(output)
-            logging[f'quick_update_inner_accuracy'] = quick_update_accuracy    
+        query_inputs, query_labels = torch.cat(query_inputs), torch.cat(query_labels)
+        train_indexes, test_indexes = self.return_adaption_and_query(query_labels)
+        output = learner(query_inputs[train_indexes], total_classes_present)
+        output['labels'] = query_labels[train_indexes]
+        quick_update_error = self.loss_func(output)
+        learner.adapt(quick_update_error)
+        quick_update_accuracy = self.calculate_accuracy(output)
+        logging[f'quick_update_inner_accuracy'] = quick_update_accuracy    
 
         # measure performance over all classes in history
+        learner.eval()
         output = learner(query_inputs[test_indexes], total_classes_present)
         output['labels'] = query_labels[test_indexes]
+        query_error = self.loss_func(output)
+        query_accuracy = self.calculate_accuracy(output)
+        logging['query_error'] = query_error
+        logging['query_accuracy'] = query_accuracy
+        return logging
+
+class OML(GradientLearningBase):
+    
+    def __init__(self, model, n_classes_start, n_class_additions, training_steps, intial_training_steps, loss_func, optim_config, k_shot, quick_adapt=True):
+        super().__init__(None, None, None, optim_config, k_shot)
+
+        self.n_classes_start = n_classes_start
+        self.n_class_additions = n_class_additions
+        self.training_steps = training_steps
+        self.initial_training_steps = intial_training_steps
+        self.loss_func = loss_func
+        self.quick_adapt = quick_adapt
+        self.model = l2l.algorithms.MAML(model, lr=optim_config['inner_learning_rate'], first_order=True, allow_nograd=True)
+        self.configure_optimizers()
+
+    def return_label_batches(self, batch_labels):
+        unique_classes = torch.unique(batch_labels, return_inverse=False)
+
+        classes = [unique_classes[:self.n_classes_start]]
+        for i in range((len(unique_classes)-self.n_classes_start)//self.n_class_additions):
+            classes.append(unique_classes[self.n_classes_start+self.n_class_additions*(i):self.n_classes_start+self.n_class_additions*(i+1)])
+        
+        return classes
+
+    @staticmethod
+    def return_indexes(batch_labels, classes):
+        batch_indexes = []
+        for i in range(len(classes)):
+            batch_indexes.append(torch.where(batch_labels==classes[i])[0])
+
+        batch_indexes = torch.concat(batch_indexes).tolist()
+        batch_indexes = batch_indexes[::2] + batch_indexes[1::2]
+        return torch.tensor(batch_indexes)
+
+    def meta_learn(self, batch):
+        # used to measure metrics
+        logging = {}
+        # to accumulate tasks change accumaluate gradients of trainer
+        _inputs, labels = batch
+        labels = return_random_labels(labels) # ensuring words are not always assigned as first class
+
+        # initiliase model that will be trained
+        learner = self.model.clone()
+        learner.train()
+
+        # create new continual learning tasks
+        class_batches = self.return_label_batches(labels)
+        # final measure of accuracy
+        query_inputs, query_labels = [], []
+
+        # train inner loops continually learn models
+        for i, class_batch in enumerate(class_batches):
+            iteration_indexes = self.return_indexes(labels, class_batch)
+            iteration_inputs, iteration_labels = _inputs[iteration_indexes], labels[iteration_indexes]
+            iteration_support_input, iteration_support_labels, iteration_query_input, iteration_query_labels = self.split_batch(iteration_inputs, iteration_labels)
+            query_inputs.append(iteration_query_input)
+            query_labels.append(iteration_query_labels)
+
+            # update amount of label that can be predicted
+            total_classes_present += len(class_batch)
+            # train additional classes
+            for step in range(self.training_steps):
+                output = learner(iteration_support_input, inner_loop=True)
+                output['labels'] = iteration_support_labels
+                support_error = self.loss_func(output)
+                learner.adapt(support_error) 
+            logging[f'step_{i+1}_inner_accuracy'] = self.calculate_accuracy(output)
+
+        # measure performance over all classes in history
+        learner.eval()
+        output = learner(query_inputs, inner_loop=False)
+        output['labels'] = query_labels
         query_error = self.loss_func(output)
         query_accuracy = self.calculate_accuracy(output)
         logging['query_error'] = query_error

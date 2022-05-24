@@ -4,12 +4,10 @@ import wandb
 
 import pytorch_lightning as pl
 from pytorch_lightning.loggers import WandbLogger
-from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping, LearningRateMonitor
+from pytorch_lightning.callbacks import ModelCheckpoint
 
 import torch
 import torch.nn as nn
-from torchvision.transforms import Compose
-import torchaudio
 
 from src.models import WordClassificationAudio2DCnn, WordClassificationAudioCnnPool as WordClassificationAudioCnn, WordClassificationRnn
 from src.losses import ClassificationLoss
@@ -149,7 +147,7 @@ class WordData(pl.LightningDataModule):
         return val_loader
 
 
-class MetaModel(nn.Module):
+class FSCLModel(nn.Module):
     def __init__(self, encoder, embedding_dim, n_classes):
         super().__init__()
 
@@ -175,6 +173,29 @@ class MetaModel(nn.Module):
         logits = torch.cat(layer_logits, dim=1)
         return {'logits':logits}
 
+
+class OMLModel(nn.Module):
+    def __init__(self, encoder, embedding_dim, n_classes):
+        super().__init__()
+
+        self.encoder = encoder
+
+        clasifier_layer = nn.Linear(embedding_dim, n_classes)
+        torch.nn.init.xavier_uniform(clasifier_layer.weight)   
+        self.classifier = nn.Sequential(nn.ReLU(), clasifier_layer)
+
+    def forward(self, audio, inner_loop=False):
+        if inner_loop:
+            with torch.no_grad():
+                features = self.encoder(audio)
+        else:
+            features = self.encoder(audio)
+
+        logits = self.classifier(features)
+        return {'logits':logits}
+
+
+
 @hydra.main(config_path="config", config_name="config_cl")
 def main(cfg: DictConfig):
     pl.utilities.seed.seed_everything(42)
@@ -193,7 +214,7 @@ def main(cfg: DictConfig):
           )
 
     loss_fn = ClassificationLoss()
-    model = MetaModel(encoder, cfg.embedding_dim, cfg.n_way)
+    model = FSCLModel(encoder, cfg.embedding_dim, cfg.n_way)
     data = WordData(cfg)
     data.setup()
 
