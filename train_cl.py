@@ -30,54 +30,54 @@ class WordData(pl.LightningDataModule):
     def setup(self, stage=None):
         if self.cfg['dataset'] == 'flickr8k':
             self.train_dataset = Flickr8kWordClassification(
-                meta_path='../../../../../../../../data/flickr/flickr8k_word_splits_train.csv',
-                audio_root='../../../../../../../../data/flickr/wavs/', 
+                meta_path='../../../../../../../../../data/flickr/flickr8k_word_splits_train.csv',
+                audio_root='../../../../../../../../../data/flickr/wavs/', 
                 conversion_config=self.cfg.conversion_method,
                 stemming=self.cfg.stemming, 
                 lemmetise=self.cfg.lematise     
             )
 
             self.valiadation_dataset = Flickr8kWordClassification(
-                meta_path='../../../../../../../../data/flickr/flickr8k_word_splits_validation.csv',
-                audio_root='../../../../../../../../data/flickr/wavs/', 
+                meta_path='../../../../../../../../../data/flickr/flickr8k_word_splits_validation.csv',
+                audio_root='../../../../../../../../../data/flickr/wavs/', 
                 conversion_config=self.cfg.conversion_method,
                 stemming=self.cfg.stemming, 
                 lemmetise=self.cfg.lematise                
             )
         elif self.cfg['dataset'] == 'google_commands':
             self.train_dataset = GoogleCommandsWordClassification(
-                meta_path='../../../../../../../../data/google_commands/google_commands_word_splits_train.csv',
-                audio_root='../../../../../../../../data/google_commands/SpeechCommands/speech_commands_v0.02', 
+                meta_path='../../../../../../../../../data/google_commands/google_commands_word_splits_train.csv',
+                audio_root='../../../../../../../../../data/google_commands/SpeechCommands/speech_commands_v0.02', 
                 conversion_config=self.cfg.conversion_method,  
             )
 
             self.valiadation_dataset = GoogleCommandsWordClassification(
-                meta_path='../../../../../../../../data/google_commands/google_commands_word_splits_validation.csv',
-                audio_root='../../../../../../../../data/google_commands/SpeechCommands/speech_commands_v0.02', 
+                meta_path='../../../../../../../../../data/google_commands/google_commands_word_splits_validation.csv',
+                audio_root='../../../../../../../../../data/google_commands/SpeechCommands/speech_commands_v0.02', 
                 conversion_config=self.cfg.conversion_method,             
             )    
         elif self.cfg['dataset'] == 'google_commands_digit':
             self.train_dataset = GoogleCommandsWordClassification(
-                meta_path='../../../../../../../../data/google_commands/google_commands_word_splits_commands.csv',
-                audio_root='../../../../../../../../data/google_commands/SpeechCommands/speech_commands_v0.02', 
+                meta_path='../../../../../../../../../data/google_commands/google_commands_word_splits_commands.csv',
+                audio_root='../../../../../../../../../data/google_commands/SpeechCommands/speech_commands_v0.02', 
                 conversion_config=self.cfg.conversion_method,  
             )
 
             self.valiadation_dataset = GoogleCommandsWordClassification(
-                meta_path='../../../../../../../../data/google_commands/google_commands_word_splits_digits.csv',
-                audio_root='../../../../../../../../data/google_commands/SpeechCommands/speech_commands_v0.02', 
+                meta_path='../../../../../../../../../data/google_commands/google_commands_word_splits_digits.csv',
+                audio_root='../../../../../../../../../data/google_commands/SpeechCommands/speech_commands_v0.02', 
                 conversion_config=self.cfg.conversion_method,             
             )         
         elif self.cfg['dataset'] == 'google_commands_commands':
             self.train_dataset = GoogleCommandsWordClassification(
-                meta_path='../../../../../../../../data/google_commands/google_commands_word_splits_digits.csv',
-                audio_root='../../../../../../../../data/google_commands/SpeechCommands/speech_commands_v0.02', 
+                meta_path='../../../../../../../../../data/google_commands/google_commands_word_splits_digits.csv',
+                audio_root='../../../../../../../../../data/google_commands/SpeechCommands/speech_commands_v0.02', 
                 conversion_config=self.cfg.conversion_method,  
             )
 
             self.valiadation_dataset = GoogleCommandsWordClassification(
-                meta_path='../../../../../../../../data/google_commands/google_commands_word_splits_commands.csv',
-                audio_root='../../../../../../../../data/google_commands/SpeechCommands/speech_commands_v0.02', 
+                meta_path='../../../../../../../../../data/google_commands/google_commands_word_splits_commands.csv',
+                audio_root='../../../../../../../../../data/google_commands/SpeechCommands/speech_commands_v0.02', 
                 conversion_config=self.cfg.conversion_method,             
             )
         elif self.cfg['dataset'] == 'fluent':
@@ -179,18 +179,30 @@ class OMLModel(nn.Module):
 
         self.encoder = encoder
 
-        clasifier_layer = nn.Linear(embedding_dim, n_classes)
-        torch.nn.init.xavier_uniform(clasifier_layer.weight)   
-        self.classifier = nn.Sequential(nn.ReLU(), clasifier_layer)
+        def return_classification_layer(embedding_dim):
+            layer = nn.Linear(embedding_dim, 1)
+            torch.nn.init.xavier_uniform(layer.weight, )
+            layer = nn.Sequential(
+                nn.ReLU(),
+                layer
+            )
+            return layer
 
-    def forward(self, audio, inner_loop=False):
+        layers = [return_classification_layer(embedding_dim) for _ in range(n_classes)]
+        self.classifiers = nn.ModuleList(layers)
+
+    def forward(self, audio, total_classes_present, inner_loop=False):
         if inner_loop:
             with torch.no_grad():
                 features = self.encoder(audio)
         else:
             features = self.encoder(audio)
 
-        logits = self.classifier(features)
+        layer_logits = []
+        for c_layer in range(total_classes_present):
+            layer_logits.append(self.classifiers[c_layer](features))
+        logits = torch.cat(layer_logits, dim=1)
+        
         return {'logits':logits}
 
 
@@ -259,7 +271,7 @@ def main(cfg: DictConfig):
         logger=wandb_logger,    
         log_every_n_steps=2,   
         gpus=None if not torch.cuda.is_available() else -1,
-        max_steps=cfg.max_steps,           
+        max_epochs=cfg.max_epochs,           
         deterministic=False, 
         precision=cfg.precision if cfg.method=='maml' else 32,
         profiler="simple",
