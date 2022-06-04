@@ -8,7 +8,7 @@ stemming: True
 lematise: False
 batch_size: 2
 epoch_n_tasks: 1000
-max_steps: 25000
+max_epochs: 25000
 precision: 16
 method: "maml"
 algorithm: "FSCL"

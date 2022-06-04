@@ -324,7 +324,9 @@ class OML(GradientLearningBase):
         query_inputs, query_labels = [], []
 
         # train inner loops continually learn models
+        total_classes_present = 0
         for i, class_batch in enumerate(class_batches):
+            total_classes_present += len(class_batch)
             iteration_indexes = return_indexes(labels, class_batch)
             iteration_inputs, iteration_labels = _inputs[iteration_indexes], labels[iteration_indexes]
             iteration_support_input, iteration_support_labels, iteration_query_input, iteration_query_labels = self.split_batch(iteration_inputs, iteration_labels)
@@ -333,7 +335,7 @@ class OML(GradientLearningBase):
 
             # train additional classes
             for step in range(self.training_steps):
-                output = learner(iteration_support_input, inner_loop=True)
+                output = learner(iteration_support_input, total_classes_present=total_classes_present, inner_loop=True)
                 output['labels'] = iteration_support_labels
                 support_error = self.loss_func(output)
                 learner.adapt(support_error) 
@@ -342,7 +344,7 @@ class OML(GradientLearningBase):
         # measure performance over all classes in history
         learner.eval()
         query_inputs = torch.cat(query_inputs)
-        output = learner(query_inputs, inner_loop=False)
+        output = learner(query_inputs, total_classes_present=total_classes_present, inner_loop=False)
         output['labels'] = torch.cat(query_labels)
         query_error = self.loss_func(output)
         query_accuracy = self.calculate_accuracy(output)
