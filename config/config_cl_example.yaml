@@ -6,24 +6,24 @@ defaults:
 dataset: 'flickr8k'
 stemming: True
 lematise: False
-batch_size: 2
+batch_size: 4
 epoch_n_tasks: 1000
-max_epochs: 25000
+max_epochs: 100
 precision: 16
 method: "maml"
 algorithm: "FSCL"
-n_way: 5
+n_way: 20
 k_shot: 5
 embedding_dim: 256
 noise_labels: 'none'
 train_update_steps: 5
 initial_training_steps: 30
-n_classes_start: 2
-n_class_additions: 1
+n_classes_start: 5
+n_class_additions: 5
 quick_adapt: True
 
 secrets:
-  wandb_key: ''
+  wandb_key: 'bac6881884b75be3cd46704701fc45ddc3865342'
 
 hydra:
   run:
