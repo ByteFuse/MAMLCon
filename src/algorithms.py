@@ -259,7 +259,7 @@ class FSCL(GradientLearningBase):
             output['labels'] = iteration_support_labels
             support_error = self.loss_func(output)
             learner.adapt(support_error) 
-        logging['step_0_inner_accuracy'] = self.calculate_accuracy(output)
+        logging['update_steps/step_0_inner_accuracy'] = self.calculate_accuracy(output)
 
         # train inner loops continually learn models
         for i, class_batch in enumerate(class_batches[1:]):
@@ -281,7 +281,7 @@ class FSCL(GradientLearningBase):
                 output['labels'] = iteration_support_labels
                 support_error = self.loss_func(output)
                 learner.adapt(support_error) 
-            logging[f'step_{i+1}_inner_accuracy'] = self.calculate_accuracy(output)
+            logging[f'update_steps/step_{i+1}_inner_accuracy'] = self.calculate_accuracy(output)
 
 
         # train final model with all classes with ONE example previously seen
@@ -295,7 +295,7 @@ class FSCL(GradientLearningBase):
             quick_update_error = self.loss_func(output)
             learner.adapt(quick_update_error)
             quick_update_accuracy = self.calculate_accuracy(output)
-            logging[f'quick_update_inner_accuracy'] = quick_update_accuracy    
+            logging[f'overall_performance/quick_update_inner_accuracy'] = quick_update_accuracy    
 
         # measure performance over all classes in history
         learner.eval()
@@ -304,8 +304,9 @@ class FSCL(GradientLearningBase):
         output['labels'] = query_labels
         query_error = self.loss_func(output)
         query_accuracy = self.calculate_accuracy(output)
+        logging['overall_performance/query_error'] = query_error
         logging['query_error'] = query_error
-        logging['query_accuracy'] = query_accuracy
+        logging['overall_performance/query_accuracy'] = query_accuracy
         return logging
 
 class OML(GradientLearningBase):
@@ -324,8 +325,19 @@ class OML(GradientLearningBase):
         unique_classes = torch.unique(batch_labels, return_inverse=False)
 
         classes = [unique_classes[:self.n_classes_start]]
-        for i in range((len(unique_classes)-self.n_classes_start)//self.n_class_additions):
-            classes.append(unique_classes[self.n_classes_start+self.n_class_additions*(i):self.n_classes_start+self.n_class_additions*(i+1)])
+        total_additions = (len(unique_classes)-self.n_classes_start)//self.n_class_additions
+        total_additions = total_additions if (len(unique_classes)-self.n_classes_start)>=1 else 1
+
+        for i in range(total_additions):
+            start_index = self.n_classes_start+self.n_class_additions*(i)
+            end_index = self.n_classes_start+self.n_class_additions*(i+1)
+            classes.append(unique_classes[start_index:end_index])
+        
+        # sometimes it misses a class as the class additions can not be divided in
+        # so we now just ensure that the few remaining classes are added at the end.
+        if torch.cat(classes).max() < batch_labels.max():
+            total_missing = batch_labels.max() - torch.cat(classes).max() 
+            classes[-1] = torch.cat([classes[-1], unique_classes[-total_missing:]])
         
         return classes
 
@@ -361,7 +373,7 @@ class OML(GradientLearningBase):
                 output['labels'] = iteration_support_labels
                 support_error = self.loss_func(output)
                 learner.adapt(support_error) 
-            logging[f'step_{i+1}_inner_accuracy'] = self.calculate_accuracy(output)
+            logging[f'update_steps/step_{i+1}_inner_accuracy'] = self.calculate_accuracy(output)
 
         # measure performance over all classes in history
         learner.eval()
@@ -370,6 +382,7 @@ class OML(GradientLearningBase):
         output['labels'] = torch.cat(query_labels)
         query_error = self.loss_func(output)
         query_accuracy = self.calculate_accuracy(output)
+        logging['overall_performance/query_error'] = query_error
         logging['query_error'] = query_error
-        logging['query_accuracy'] = query_accuracy
+        logging['overall_performance/query_accuracy'] = query_accuracy
         return logging
