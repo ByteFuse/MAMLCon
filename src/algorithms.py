@@ -259,7 +259,7 @@ class FSCL(GradientLearningBase):
             output['labels'] = iteration_support_labels
             support_error = self.loss_func(output)
             learner.adapt(support_error) 
-        logging['update_steps/step_0_inner_accuracy'] = self.calculate_accuracy(output)
+        logging['step_0_inner_accuracy'] = self.calculate_accuracy(output)
 
         # train inner loops continually learn models
         for i, class_batch in enumerate(class_batches[1:]):
@@ -281,7 +281,7 @@ class FSCL(GradientLearningBase):
                 output['labels'] = iteration_support_labels
                 support_error = self.loss_func(output)
                 learner.adapt(support_error) 
-            logging[f'update_steps/step_{i+1}_inner_accuracy'] = self.calculate_accuracy(output)
+            logging[f'step_{i+1}_inner_accuracy'] = self.calculate_accuracy(output)
 
 
         # train final model with all classes with ONE example previously seen
@@ -295,7 +295,7 @@ class FSCL(GradientLearningBase):
             quick_update_error = self.loss_func(output)
             learner.adapt(quick_update_error)
             quick_update_accuracy = self.calculate_accuracy(output)
-            logging[f'overall_performance/quick_update_inner_accuracy'] = quick_update_accuracy    
+            logging[f'quick_update_inner_accuracy'] = quick_update_accuracy    
 
         # measure performance over all classes in history
         learner.eval()
@@ -304,9 +304,8 @@ class FSCL(GradientLearningBase):
         output['labels'] = query_labels
         query_error = self.loss_func(output)
         query_accuracy = self.calculate_accuracy(output)
-        logging['overall_performance/query_error'] = query_error
         logging['query_error'] = query_error
-        logging['overall_performance/query_accuracy'] = query_accuracy
+        logging['query_accuracy'] = query_accuracy
         return logging
 
 class OML(GradientLearningBase):
@@ -373,7 +372,7 @@ class OML(GradientLearningBase):
                 output['labels'] = iteration_support_labels
                 support_error = self.loss_func(output)
                 learner.adapt(support_error) 
-            logging[f'update_steps/step_{i+1}_inner_accuracy'] = self.calculate_accuracy(output)
+            logging[f'step_{i+1}_inner_accuracy'] = self.calculate_accuracy(output)
 
         # measure performance over all classes in history
         learner.eval()
@@ -382,7 +381,6 @@ class OML(GradientLearningBase):
         output['labels'] = torch.cat(query_labels)
         query_error = self.loss_func(output)
         query_accuracy = self.calculate_accuracy(output)
-        logging['overall_performance/query_error'] = query_error
         logging['query_error'] = query_error
-        logging['overall_performance/query_accuracy'] = query_accuracy
+        logging['query_accuracy'] = query_accuracy
         return logging
