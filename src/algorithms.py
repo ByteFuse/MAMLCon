@@ -299,7 +299,16 @@ class FSCL(GradientLearningBase):
 
         # measure performance over all classes in history
         learner.eval()
-        query_inputs, query_labels = torch.cat(query_inputs), torch.cat(query_labels)
+        query_inputs = torch.cat(query_inputs)
+        query_labels = torch.cat(query_labels)
+
+        # keeping test size constant up until 5 instances
+        testing_indexes = [torch.where(query_labels==c)[0][:5] for c in torch.unique(query_labels)]
+        testing_indexes = torch.cat(testing_indexes)
+        query_inputs = query_inputs[testing_indexes]
+        query_labels = query_labels[testing_indexes]
+
+
         output = learner(query_inputs, total_classes_present)
         output['labels'] = query_labels
         query_error = self.loss_func(output)
@@ -377,8 +386,16 @@ class OML(GradientLearningBase):
         # measure performance over all classes in history
         learner.eval()
         query_inputs = torch.cat(query_inputs)
+        query_labels = torch.cat(query_labels)
+
+        # keeping test size constant up until 5 instances
+        testing_indexes = [torch.where(query_labels==c)[0][:5] for c in torch.unique(query_labels)]
+        testing_indexes = torch.cat(testing_indexes)
+        query_inputs = query_inputs[testing_indexes]
+        query_labels = query_labels[testing_indexes]
+
         output = learner(query_inputs, total_classes_present=total_classes_present, inner_loop=False)
-        output['labels'] = torch.cat(query_labels)
+        output['labels'] = query_labels
         query_error = self.loss_func(output)
         query_accuracy = self.calculate_accuracy(output)
         logging['query_error'] = query_error
