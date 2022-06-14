@@ -6,6 +6,8 @@ import wandb
 import pytorch_lightning as pl
 from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.callbacks import ModelCheckpoint
+from pytorch_lightning.callbacks.early_stopping import EarlyStopping
+
 
 import torch
 import torch.nn as nn
@@ -255,7 +257,7 @@ def main(cfg: DictConfig):
         raise NotImplementedError
 
     wandb.login(key=cfg.secrets.wandb_key)
-    wandb_logger = WandbLogger(project='unimodal-isolated-few-shot-continual-learning', config=flatten_dict(cfg), entity='lambda-ai')
+    wandb_logger = WandbLogger(project='V2-unimodal-isolated-few-shot-continual-learning', config=flatten_dict(cfg))#, entity='lambda-ai')
     
     checkpoint_callback = ModelCheckpoint(
         dirpath='checkpoints', 
@@ -265,7 +267,8 @@ def main(cfg: DictConfig):
         save_weights_only=False,
         save_last=True
     )
-    callbacks = [checkpoint_callback]
+    early_stop_callback = EarlyStopping(monitor="validation_query_error", min_delta=0.00, patience=10, verbose=False, mode="min")
+    callbacks = [checkpoint_callback, early_stop_callback]
 
     trainer = pl.Trainer(
         logger=wandb_logger,    
