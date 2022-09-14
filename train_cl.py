@@ -6,6 +6,8 @@ import wandb
 import pytorch_lightning as pl
 from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.callbacks import ModelCheckpoint
+from pytorch_lightning.callbacks.early_stopping import EarlyStopping
+
 
 import torch
 import torch.nn as nn
@@ -128,7 +130,7 @@ class WordData(pl.LightningDataModule):
             self.train_dataset,
             batch_sampler=self.train_sampler, 
             collate_fn=self.train_sampler.get_collate_fn,
-            num_workers=16,
+            num_workers=4,
             persistent_workers=True,
             pin_memory=True
         )
@@ -140,7 +142,7 @@ class WordData(pl.LightningDataModule):
             self.valiadation_dataset,
             batch_sampler=self.valiadation_sampler, 
             collate_fn=self.valiadation_sampler.get_collate_fn, 
-            num_workers=16,
+            num_workers=4,
             persistent_workers=True,
             pin_memory=True
         )
@@ -199,7 +201,7 @@ class OMLModel(nn.Module):
             features = self.encoder(audio)
 
         layer_logits = []
-        for c_layer in range(total_classes_present):
+        for c_layer in range(len(self.classifiers)):
             layer_logits.append(self.classifiers[c_layer](features))
         logits = torch.cat(layer_logits, dim=1)
         
@@ -238,8 +240,8 @@ def main(cfg: DictConfig):
             loss_func=loss_fn,
             optim_config=cfg.optim,
             k_shot=cfg.k_shot,
-            quick_adapt=cfg.quick_adapt
-        )
+            quick_adapt=cfg.quick_adapt)
+
     if cfg.method=='maml' and cfg.algorithm=='OML':
         model = OMLModel(encoder, cfg.embedding_dim, cfg.n_way)
         algorithm = OML(
@@ -255,7 +257,7 @@ def main(cfg: DictConfig):
         raise NotImplementedError
 
     wandb.login(key=cfg.secrets.wandb_key)
-    wandb_logger = WandbLogger(project='unimodal-isolated-few-shot-continual-learning', config=flatten_dict(cfg), entity='lambda-ai')
+    wandb_logger = WandbLogger(project='V2-unimodal-isolated-few-shot-continual-learning', config=flatten_dict(cfg))#, entity='lambda-ai')
     
     checkpoint_callback = ModelCheckpoint(
         dirpath='checkpoints', 
@@ -265,13 +267,14 @@ def main(cfg: DictConfig):
         save_weights_only=False,
         save_last=True
     )
-    callbacks = [checkpoint_callback]
+    early_stop_callback = EarlyStopping(monitor="validation_query_error", min_delta=0.05, patience=100, verbose=False, mode="min")
+    callbacks = [checkpoint_callback, early_stop_callback]
 
     trainer = pl.Trainer(
         logger=wandb_logger,    
         log_every_n_steps=2,   
         gpus=None if not torch.cuda.is_available() else -1,
-        max_epochs=cfg.max_epochs,           
+        max_epochs=3000,           
         deterministic=False, 
         precision=cfg.precision if cfg.method=='maml' else 32,
         profiler="simple",
@@ -279,7 +282,7 @@ def main(cfg: DictConfig):
         gradient_clip_val=cfg.optim.gradient_clip_val,
         limit_train_batches = cfg.epoch_n_tasks,
         limit_val_batches = cfg.epoch_n_tasks,
-        callbacks=callbacks
+        callbacks=callbacks,
     )
 
     trainer.fit(algorithm, data)

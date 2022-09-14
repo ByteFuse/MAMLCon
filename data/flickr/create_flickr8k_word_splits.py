@@ -64,15 +64,13 @@ df['lem'] = df.word.apply(lambda word: lematised[word])
 df = df[~df.word.isin(['<SPOKEN_NOISE>',"'S", 'A'])]
 word_counts = df.groupby('stem').count().reset_index().rename(columns={'original_file':'count'})[['stem', 'word','count']]
 word_counts['word_length'] = word_counts.stem.apply(lambda x: len(x))
-word_counts = word_counts[(word_counts.word_length>1)&(word_counts['count']>10)&(word_counts['count']<1000)]
+word_counts = word_counts[(word_counts.word_length>1)&(word_counts['count']>=100)&(word_counts['count']<1000)]
 chosen_words = word_counts.sort_values('word_length')
 
 train, test = train_test_split(list(chosen_words.stem.values), test_size=.35, random_state=42)
-val, test = train_test_split(test, test_size=.5, random_state=42)
 df = df[df.stem.isin(chosen_words.stem.values)]
 df['split'] = 'train'
-df.loc[df.stem.isin(val), 'split'] = 'validation'
-df.loc[df.stem.isin(test), 'split'] = 'test'
+df.loc[df.stem.isin(test), 'split'] = 'validation'
 
 # save audio
 df.progress_apply(load_and_cut_and_save, axis=1)
@@ -80,4 +78,3 @@ df.progress_apply(load_and_cut_and_save, axis=1)
 # save meta data
 df[df.split=='train'].to_csv('./flickr8k_word_splits_train.csv', index=False)
 df[df.split=='validation'].to_csv('./flickr8k_word_splits_validation.csv', index=False)
-df[df.split=='test'].to_csv('./flickr8k_word_splits_test.csv', index=False)

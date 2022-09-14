@@ -201,8 +201,19 @@ class FSCL(GradientLearningBase):
         unique_classes = torch.unique(batch_labels, return_inverse=False)
 
         classes = [unique_classes[:self.n_classes_start]]
-        for i in range((len(unique_classes)-self.n_classes_start)//self.n_class_additions):
-            classes.append(unique_classes[self.n_classes_start+self.n_class_additions*(i):self.n_classes_start+self.n_class_additions*(i+1)])
+        total_additions = (len(unique_classes)-self.n_classes_start)//self.n_class_additions
+        total_additions = total_additions if (len(unique_classes)-self.n_classes_start)>=1 else 1
+
+        for i in range(total_additions):
+            start_index = self.n_classes_start+self.n_class_additions*(i)
+            end_index = self.n_classes_start+self.n_class_additions*(i+1)
+            classes.append(unique_classes[start_index:end_index])
+        
+        # sometimes it misses a class as the class additions can not be divided in
+        # so we now just ensure that the few remaining classes are added at the end.
+        if torch.cat(classes).max() < batch_labels.max():
+            total_missing = batch_labels.max() - torch.cat(classes).max() 
+            classes[-1] = torch.cat([classes[-1], unique_classes[-total_missing:]])
         
         return classes
 
@@ -227,6 +238,7 @@ class FSCL(GradientLearningBase):
         class_batches = self.return_label_batches(labels)
         # final measure of accuracy
         query_inputs, query_labels = [], []
+        quick_update_inputs, quick_update_labels = [], []
 
         # train on first iteration of classes
         iteration_indexes = return_indexes(labels, class_batches[0])
@@ -234,6 +246,10 @@ class FSCL(GradientLearningBase):
         iteration_support_input, iteration_support_labels, iteration_query_input, iteration_query_labels = self.split_batch(iteration_inputs, iteration_labels)
         query_inputs.append(iteration_query_input)
         query_labels.append(iteration_query_labels)
+
+        # store the first example of each class for quick update
+        quick_update_inputs.append(iteration_support_input[::self.k_shot])
+        quick_update_labels.append(iteration_support_labels[::self.k_shot])
 
         total_classes_present = len(class_batches[0])
         
@@ -253,6 +269,10 @@ class FSCL(GradientLearningBase):
             query_inputs.append(iteration_query_input)
             query_labels.append(iteration_query_labels)
 
+            # store the first example of each class for quick update
+            quick_update_inputs.append(iteration_support_input[::self.k_shot])
+            quick_update_labels.append(iteration_support_labels[::self.k_shot])
+
             # update amount of label that can be predicted
             total_classes_present += len(class_batch)
             # train additional classes
@@ -263,14 +283,15 @@ class FSCL(GradientLearningBase):
                 learner.adapt(support_error) 
             logging[f'step_{i+1}_inner_accuracy'] = self.calculate_accuracy(output)
 
-        # train final model with all classes with ONE example
 
+        # train final model with all classes with ONE example previously seen
+        # "remembering" something about a class
         if self.quick_adapt:
-            query_inputs, query_labels = torch.cat(query_inputs), torch.cat(query_labels)
-            train_indexes, test_indexes = self.return_adaption_and_query(query_labels)
+            quick_update_inputs = torch.cat(quick_update_inputs)
+            quick_update_labels = torch.cat(quick_update_labels)
 
-            output = learner(query_inputs[train_indexes], total_classes_present)
-            output['labels'] = query_labels[train_indexes]
+            output = learner(quick_update_inputs, total_classes_present)
+            output['labels'] = quick_update_labels
             quick_update_error = self.loss_func(output)
             learner.adapt(quick_update_error)
             quick_update_accuracy = self.calculate_accuracy(output)
@@ -278,8 +299,18 @@ class FSCL(GradientLearningBase):
 
         # measure performance over all classes in history
         learner.eval()
-        output = learner(query_inputs[test_indexes], total_classes_present)
-        output['labels'] = query_labels[test_indexes]
+        query_inputs = torch.cat(query_inputs)
+        query_labels = torch.cat(query_labels)
+
+        # keeping test size constant up until 5 instances
+        testing_indexes = [torch.where(query_labels==c)[0][:5] for c in torch.unique(query_labels)]
+        testing_indexes = torch.cat(testing_indexes)
+        query_inputs = query_inputs[testing_indexes]
+        query_labels = query_labels[testing_indexes]
+
+
+        output = learner(query_inputs, total_classes_present)
+        output['labels'] = query_labels
         query_error = self.loss_func(output)
         query_accuracy = self.calculate_accuracy(output)
         logging['query_error'] = query_error
@@ -302,8 +333,19 @@ class OML(GradientLearningBase):
         unique_classes = torch.unique(batch_labels, return_inverse=False)
 
         classes = [unique_classes[:self.n_classes_start]]
-        for i in range((len(unique_classes)-self.n_classes_start)//self.n_class_additions):
-            classes.append(unique_classes[self.n_classes_start+self.n_class_additions*(i):self.n_classes_start+self.n_class_additions*(i+1)])
+        total_additions = (len(unique_classes)-self.n_classes_start)//self.n_class_additions
+        total_additions = total_additions if (len(unique_classes)-self.n_classes_start)>=1 else 1
+
+        for i in range(total_additions):
+            start_index = self.n_classes_start+self.n_class_additions*(i)
+            end_index = self.n_classes_start+self.n_class_additions*(i+1)
+            classes.append(unique_classes[start_index:end_index])
+        
+        # sometimes it misses a class as the class additions can not be divided in
+        # so we now just ensure that the few remaining classes are added at the end.
+        if torch.cat(classes).max() < batch_labels.max():
+            total_missing = batch_labels.max() - torch.cat(classes).max() 
+            classes[-1] = torch.cat([classes[-1], unique_classes[-total_missing:]])
         
         return classes
 
@@ -344,8 +386,16 @@ class OML(GradientLearningBase):
         # measure performance over all classes in history
         learner.eval()
         query_inputs = torch.cat(query_inputs)
+        query_labels = torch.cat(query_labels)
+
+        # keeping test size constant up until 5 instances
+        testing_indexes = [torch.where(query_labels==c)[0][:5] for c in torch.unique(query_labels)]
+        testing_indexes = torch.cat(testing_indexes)
+        query_inputs = query_inputs[testing_indexes]
+        query_labels = query_labels[testing_indexes]
+
         output = learner(query_inputs, total_classes_present=total_classes_present, inner_loop=False)
-        output['labels'] = torch.cat(query_labels)
+        output['labels'] = query_labels
         query_error = self.loss_func(output)
         query_accuracy = self.calculate_accuracy(output)
         logging['query_error'] = query_error
