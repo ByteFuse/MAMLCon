@@ -81,7 +81,8 @@ class FewShotBatchSampler:
         self.batches_per_class = {}  # Number of K-shot batches that each class can provide
         for c in self.classes:
             self.indices_per_class[c] = torch.where(self.dataset_targets == c)[0]
-            self.batches_per_class[c] = self.indices_per_class[c].shape[0] // self.K_shot
+            n_batches = self.indices_per_class[c].shape[0] // self.K_shot
+            self.batches_per_class[c] = n_batches if n_batches > 0 else 1
 
         # Create a list of classes from which we select the N classes per batch
         self.iterations = sum(self.batches_per_class.values()) // self.N_way
@@ -90,6 +91,7 @@ class FewShotBatchSampler:
         # Sample few-shot batches
         start_index = defaultdict(int) # default dict value is now 0
         for it in range(self.iterations):
+
             class_batch = list(np.random.choice(self.classes, replace=False, size=self.N_way))  # Select N classes for the batch
             index_batch = []
 
@@ -106,6 +108,8 @@ class FewShotBatchSampler:
 
             if self.include_query:  # If we return support+query set, sort them so that they are easy to split
                 index_batch = index_batch[::2] + index_batch[1::2]
+
+            
             yield index_batch
 
     def __len__(self):
@@ -152,6 +156,7 @@ class SpokenWordTaskBatchSampler:
         # Aggregate multiple batches before returning the indices
         batch_list = []
         for batch_idx, batch in enumerate(self.batch_sampler):
+
             batch_list.extend(batch)
             if (batch_idx + 1) % self.task_batch_size == 0:
                 yield batch_list
@@ -206,5 +211,4 @@ class SpokenWordTaskBatchSampler:
         words =  torch.tensor(le.fit_transform(np.array(words))) # get into numbers makes everything easier
         audio = audio.chunk(self.task_batch_size, dim=0)[0]
         words = words.chunk(self.task_batch_size, dim=0)[0]
-       
         return audio, words

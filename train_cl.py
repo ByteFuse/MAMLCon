@@ -32,54 +32,54 @@ class WordData(pl.LightningDataModule):
     def setup(self, stage=None):
         if self.cfg['dataset'] == 'flickr8k':
             self.train_dataset = Flickr8kWordClassification(
-                meta_path='../../../../../../../../../data/flickr/flickr8k_word_splits_train.csv',
-                audio_root='../../../../../../../../../data/flickr/wavs/', 
+                meta_path='C:/Users/ruanv/Desktop/speech-fewshot-cl/data/flickr/flickr8k_word_splits_train.csv',
+                audio_root='C:/Users/ruanv/Desktop/speech-fewshot-cl/data/flickr/wavs/', 
                 conversion_config=self.cfg.conversion_method,
                 stemming=self.cfg.stemming, 
                 lemmetise=self.cfg.lematise     
             )
 
             self.valiadation_dataset = Flickr8kWordClassification(
-                meta_path='../../../../../../../../../data/flickr/flickr8k_word_splits_validation.csv',
-                audio_root='../../../../../../../../../data/flickr/wavs/', 
+                meta_path='C:/Users/ruanv/Desktop/speech-fewshot-cl/data/flickr/flickr8k_word_splits_validation.csv',
+                audio_root='C:/Users/ruanv/Desktop/speech-fewshot-cl/data/flickr/wavs/', 
                 conversion_config=self.cfg.conversion_method,
                 stemming=self.cfg.stemming, 
                 lemmetise=self.cfg.lematise                
             )
         elif self.cfg['dataset'] == 'google_commands':
             self.train_dataset = GoogleCommandsWordClassification(
-                meta_path='../../../../../../../../../data/google_commands/google_commands_word_splits_train.csv',
-                audio_root='../../../../../../../../../data/google_commands/SpeechCommands/speech_commands_v0.02', 
+                meta_path='C:/Users/ruanv/Desktop/speech-fewshot-cl/data/google_commands/google_commands_word_splits_train.csv',
+                audio_root='C:/Users/ruanv/Desktop/speech-fewshot-cl/data/google_commands/SpeechCommands/speech_commands_v0.02', 
                 conversion_config=self.cfg.conversion_method,  
             )
 
             self.valiadation_dataset = GoogleCommandsWordClassification(
-                meta_path='../../../../../../../../../data/google_commands/google_commands_word_splits_validation.csv',
-                audio_root='../../../../../../../../../data/google_commands/SpeechCommands/speech_commands_v0.02', 
+                meta_path='C:/Users/ruanv/Desktop/speech-fewshot-cl/data/google_commands/google_commands_word_splits_validation.csv',
+                audio_root='C:/Users/ruanv/Desktop/speech-fewshot-cl/data/google_commands/SpeechCommands/speech_commands_v0.02', 
                 conversion_config=self.cfg.conversion_method,             
             )    
         elif self.cfg['dataset'] == 'google_commands_digit':
             self.train_dataset = GoogleCommandsWordClassification(
-                meta_path='../../../../../../../../../data/google_commands/google_commands_word_splits_commands.csv',
-                audio_root='../../../../../../../../../data/google_commands/SpeechCommands/speech_commands_v0.02', 
+                meta_path='C:/Users/ruanv/Desktop/speech-fewshot-cl/data/google_commands/google_commands_word_splits_commands.csv',
+                audio_root='C:/Users/ruanv/Desktop/speech-fewshot-cl/data/google_commands/SpeechCommands/speech_commands_v0.02', 
                 conversion_config=self.cfg.conversion_method,  
             )
 
             self.valiadation_dataset = GoogleCommandsWordClassification(
-                meta_path='../../../../../../../../../data/google_commands/google_commands_word_splits_digits.csv',
-                audio_root='../../../../../../../../../data/google_commands/SpeechCommands/speech_commands_v0.02', 
+                meta_path='C:/Users/ruanv/Desktop/speech-fewshot-cl/data/google_commands/google_commands_word_splits_digits.csv',
+                audio_root='C:/Users/ruanv/Desktop/speech-fewshot-cl/data/google_commands/SpeechCommands/speech_commands_v0.02', 
                 conversion_config=self.cfg.conversion_method,             
             )         
         elif self.cfg['dataset'] == 'google_commands_commands':
             self.train_dataset = GoogleCommandsWordClassification(
-                meta_path='../../../../../../../../../data/google_commands/google_commands_word_splits_digits.csv',
-                audio_root='../../../../../../../../../data/google_commands/SpeechCommands/speech_commands_v0.02', 
+                meta_path='C:/Users/ruanv/Desktop/speech-fewshot-cl/data/google_commands/google_commands_word_splits_digits.csv',
+                audio_root='C:/Users/ruanv/Desktop/speech-fewshot-cl/data/google_commands/SpeechCommands/speech_commands_v0.02', 
                 conversion_config=self.cfg.conversion_method,  
             )
 
             self.valiadation_dataset = GoogleCommandsWordClassification(
-                meta_path='../../../../../../../../../data/google_commands/google_commands_word_splits_commands.csv',
-                audio_root='../../../../../../../../../data/google_commands/SpeechCommands/speech_commands_v0.02', 
+                meta_path='C:/Users/ruanv/Desktop/speech-fewshot-cl/data/google_commands/google_commands_word_splits_commands.csv',
+                audio_root='C:/Users/ruanv/Desktop/speech-fewshot-cl/data/google_commands/SpeechCommands/speech_commands_v0.02', 
                 conversion_config=self.cfg.conversion_method,             
             )
         elif self.cfg['dataset'] == 'fluent':
@@ -257,7 +257,7 @@ def main(cfg: DictConfig):
         raise NotImplementedError
 
     wandb.login(key=cfg.secrets.wandb_key)
-    wandb_logger = WandbLogger(project='V2-unimodal-isolated-few-shot-continual-learning', config=flatten_dict(cfg))#, entity='lambda-ai')
+    wandb_logger = WandbLogger(project='QUACLE', config=flatten_dict(cfg), entity='lambda-ai')
     
     checkpoint_callback = ModelCheckpoint(
         dirpath='checkpoints', 
@@ -268,13 +268,13 @@ def main(cfg: DictConfig):
         save_last=True
     )
     early_stop_callback = EarlyStopping(monitor="validation_query_error", min_delta=0.05, patience=100, verbose=False, mode="min")
-    callbacks = [checkpoint_callback, early_stop_callback]
+    callbacks = [checkpoint_callback]
 
     trainer = pl.Trainer(
         logger=wandb_logger,    
         log_every_n_steps=2,   
         gpus=None if not torch.cuda.is_available() else -1,
-        max_epochs=3000,           
+        max_epochs=5000,           
         deterministic=False, 
         precision=cfg.precision if cfg.method=='maml' else 32,
         profiler="simple",
