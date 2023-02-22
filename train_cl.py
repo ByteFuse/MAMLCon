@@ -32,54 +32,54 @@ class WordData(pl.LightningDataModule):
     def setup(self, stage=None):
         if self.cfg['dataset'] == 'flickr8k':
             self.train_dataset = Flickr8kWordClassification(
-                meta_path='C:/Users/ruanv/Desktop/speech-fewshot-cl/data/flickr/flickr8k_word_splits_train.csv',
-                audio_root='C:/Users/ruanv/Desktop/speech-fewshot-cl/data/flickr/wavs/', 
+                meta_path='~/mamlcon/data/flickr/flickr8k_word_splits_train.csv',
+                audio_root='~/mamlcon/data/flickr/wavs/', 
                 conversion_config=self.cfg.conversion_method,
                 stemming=self.cfg.stemming, 
                 lemmetise=self.cfg.lematise     
             )
 
             self.valiadation_dataset = Flickr8kWordClassification(
-                meta_path='C:/Users/ruanv/Desktop/speech-fewshot-cl/data/flickr/flickr8k_word_splits_validation.csv',
-                audio_root='C:/Users/ruanv/Desktop/speech-fewshot-cl/data/flickr/wavs/', 
+                meta_path='~/mamlcon/data/flickr/flickr8k_word_splits_validation.csv',
+                audio_root='~/mamlcon/data/flickr/wavs/', 
                 conversion_config=self.cfg.conversion_method,
                 stemming=self.cfg.stemming, 
                 lemmetise=self.cfg.lematise                
             )
         elif self.cfg['dataset'] == 'google_commands':
             self.train_dataset = GoogleCommandsWordClassification(
-                meta_path='C:/Users/ruanv/Desktop/speech-fewshot-cl/data/google_commands/google_commands_word_splits_train.csv',
-                audio_root='C:/Users/ruanv/Desktop/speech-fewshot-cl/data/google_commands/SpeechCommands/speech_commands_v0.02', 
+                meta_path='~/mamlcon/data/google_commands/google_commands_word_splits_train.csv',
+                audio_root='~/mamlcon/data/google_commands/SpeechCommands/speech_commands_v0.02', 
                 conversion_config=self.cfg.conversion_method,  
             )
 
             self.valiadation_dataset = GoogleCommandsWordClassification(
-                meta_path='C:/Users/ruanv/Desktop/speech-fewshot-cl/data/google_commands/google_commands_word_splits_validation.csv',
-                audio_root='C:/Users/ruanv/Desktop/speech-fewshot-cl/data/google_commands/SpeechCommands/speech_commands_v0.02', 
+                meta_path='~/mamlcon/data/google_commands/google_commands_word_splits_validation.csv',
+                audio_root='~/mamlcon/data/google_commands/SpeechCommands/speech_commands_v0.02', 
                 conversion_config=self.cfg.conversion_method,             
             )    
         elif self.cfg['dataset'] == 'google_commands_digit':
             self.train_dataset = GoogleCommandsWordClassification(
-                meta_path='C:/Users/ruanv/Desktop/speech-fewshot-cl/data/google_commands/google_commands_word_splits_commands.csv',
-                audio_root='C:/Users/ruanv/Desktop/speech-fewshot-cl/data/google_commands/SpeechCommands/speech_commands_v0.02', 
+                meta_path='~/mamlcon/data/google_commands/google_commands_word_splits_commands.csv',
+                audio_root='~/mamlcon/data/google_commands/SpeechCommands/speech_commands_v0.02', 
                 conversion_config=self.cfg.conversion_method,  
             )
 
             self.valiadation_dataset = GoogleCommandsWordClassification(
-                meta_path='C:/Users/ruanv/Desktop/speech-fewshot-cl/data/google_commands/google_commands_word_splits_digits.csv',
-                audio_root='C:/Users/ruanv/Desktop/speech-fewshot-cl/data/google_commands/SpeechCommands/speech_commands_v0.02', 
+                meta_path='~/mamlcon/ata/google_commands/google_commands_word_splits_digits.csv',
+                audio_root='~/mamlcon/data/google_commands/SpeechCommands/speech_commands_v0.02', 
                 conversion_config=self.cfg.conversion_method,             
             )         
         elif self.cfg['dataset'] == 'google_commands_commands':
             self.train_dataset = GoogleCommandsWordClassification(
-                meta_path='C:/Users/ruanv/Desktop/speech-fewshot-cl/data/google_commands/google_commands_word_splits_digits.csv',
-                audio_root='C:/Users/ruanv/Desktop/speech-fewshot-cl/data/google_commands/SpeechCommands/speech_commands_v0.02', 
+                meta_path='~/mamlcon/data/google_commands/google_commands_word_splits_digits.csv',
+                audio_root='~/mamlcon/data/google_commands/SpeechCommands/speech_commands_v0.02', 
                 conversion_config=self.cfg.conversion_method,  
             )
 
             self.valiadation_dataset = GoogleCommandsWordClassification(
-                meta_path='C:/Users/ruanv/Desktop/speech-fewshot-cl/data/google_commands/google_commands_word_splits_commands.csv',
-                audio_root='C:/Users/ruanv/Desktop/speech-fewshot-cl/data/google_commands/SpeechCommands/speech_commands_v0.02', 
+                meta_path='~/mamlcon/ata/google_commands/google_commands_word_splits_commands.csv',
+                audio_root='~/mamlcon/data/google_commands/SpeechCommands/speech_commands_v0.02', 
                 conversion_config=self.cfg.conversion_method,             
             )
         elif self.cfg['dataset'] == 'fluent':
