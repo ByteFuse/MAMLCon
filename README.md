@@ -1,1 +1,1 @@
-# Quick Adapt Few Shot Continual Meta Learning
+# Model Agnostic Meta-Learning for Continual Learning: MAMLCon
